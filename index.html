@@ -1120,8 +1120,47 @@ function buildPedalGrid(list){
 ═══════════════════════════════════ */
 async function loadPedalDirect(hint){
   document.getElementById('pedal-input').value = hint.brand+' '+hint.name;
-  // pass color hint to AI so it knows the pedal's real appearance
+  if(!apiKey){
+    // Free mode: build pedal from local defaults, no API needed
+    const pedal = buildLocalPedal(hint);
+    setLed('off'); stopAudio();
+    renderPedal(pedal);
+    return;
+  }
   await loadPedalCore(hint.brand+' '+hint.name, hint);
+}
+
+function buildLocalPedal(hint){
+  const defaults = {
+    distortion: {knobs:['gain','tone','level'], params:{gain:65,tone:50,level:60,distortion_character:'hard_clip',freq_emphasis:'mid',warmth:0.4,brightness:0.6,wetDry:0.85}},
+    overdrive:  {knobs:['drive','tone','level'], params:{gain:55,tone:50,level:60,distortion_character:'soft_clip',freq_emphasis:'mid',warmth:0.6,brightness:0.5,wetDry:0.8}},
+    fuzz:       {knobs:['fuzz','volume','tone'], params:{gain:80,tone:45,level:65,distortion_character:'fuzz',freq_emphasis:'low_mid',warmth:0.7,brightness:0.3,wetDry:0.9}},
+    phaser:     {knobs:['rate','depth','feedback','level'], params:{gain:0,tone:50,level:60,rate:0.5,depth:0.6,feedback:0.4,wetDry:0.5}},
+    chorus:     {knobs:['rate','depth','level'], params:{gain:0,tone:50,level:60,rate:0.4,depth:0.5,wetDry:0.5}},
+    flanger:    {knobs:['rate','depth','feedback','level'], params:{gain:0,tone:50,level:60,rate:0.3,depth:0.6,feedback:0.5,wetDry:0.5}},
+    delay:      {knobs:['time','feedback','mix'], params:{gain:0,tone:50,level:60,delayTime:0.35,feedback:0.4,wetDry:0.35}},
+    reverb:     {knobs:['decay','mix','tone'], params:{gain:0,tone:50,level:60,decay:0.5,wetDry:0.4}},
+    tremolo:    {knobs:['rate','depth','level'], params:{gain:0,tone:50,level:60,rate:0.5,depth:0.7,wetDry:1.0}},
+    compressor: {knobs:['sustain','attack','level'], params:{gain:0,tone:50,level:60,wetDry:1.0}},
+    boost:      {knobs:['gain','level'], params:{gain:40,tone:50,level:70,wetDry:1.0}},
+    eq:         {knobs:['bass','mid','treble','level'], params:{gain:0,tone:50,level:60,wetDry:1.0}},
+    wah:        {knobs:['freq','q','level'], params:{gain:0,tone:50,level:60,wetDry:1.0}},
+  };
+  const d = defaults[hint.type] || defaults.distortion;
+  const shape = hint.name.toLowerCase().includes('fuzz face') ? 'round'
+              : (d.knobs.length >= 5) ? 'large' : 'tall';
+  return {
+    brand: hint.brand,
+    model: hint.name,
+    type:  hint.type,
+    description: `${hint.brand} ${hint.name} — classic ${hint.type} pedal. Load in AI Mode to fetch detailed specs.`,
+    color: hint.color,
+    bodyColor: hint.bodyColor,
+    textColor: '#FFFFFF',
+    shape,
+    knobs: d.knobs,
+    params: d.params,
+  };
 }
 async function loadPedal(){
   const raw=(document.getElementById('pedal-input').value||'').trim();
