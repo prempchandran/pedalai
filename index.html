@@ -1084,7 +1084,21 @@ function buildCatUI(){
   HINTS.forEach(h=>{
     const c = document.createElement('button');
     c.className='hint-chip'; c.textContent=h;
-    c.onclick=()=>{ document.getElementById('pedal-input').value=h; loadPedal(); };
+    c.onclick=()=>{
+      if(!apiKey){
+        // Free mode: find in prebuilt catalogue
+        const parts = h.split(' ');
+        let found = null;
+        Object.values(PEDALS).forEach(arr=>arr.forEach(p=>{
+          if((p.brand+' '+p.name).toLowerCase()===h.toLowerCase()) found=p;
+        }));
+        if(found){ loadPedalDirect(found); return; }
+        // Not in catalogue — nudge to AI mode
+        showErr('AI Mode needed to search custom pedals.');
+        return;
+      }
+      document.getElementById('pedal-input').value=h; loadPedal();
+    };
     chips.appendChild(c);
   });
 }
@@ -1171,7 +1185,7 @@ async function loadPedal(){
 async function loadPedalCore(raw, hint){
   const errLine=document.getElementById('err-line');
   if(errLine) errLine.style.display='none';
-  if(!apiKey){showErr('Add your API key first.');collapseApi();const b=document.getElementById('api-body');if(!b.classList.contains('open'))toggleApiPanel();return;}
+  if(!apiKey){showErr('Add your API key first — or switch to Free Mode for prebuilt pedals.');if(aiModeOn){collapseApi();const b=document.getElementById('api-body');if(b&&!b.classList.contains('open'))toggleApiPanel();}return;}
   const btn=document.getElementById('load-btn');
   btn.disabled=true; btn.textContent='Loading…';
   setLed('seek'); stopAudio();
