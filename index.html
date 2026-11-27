@@ -740,6 +740,11 @@ footer a:hover{color:var(--accent)}
 
         <!-- Identity + desc + led -->
         <div class="pedal-info">
+          <!-- Real photo artwork (shown when available) -->
+          <div id="pedal-artwork-wrap" style="display:none;margin-bottom:10px;border-radius:10px;overflow:hidden;border:1.5px solid var(--border2);background:var(--surface2);position:relative;">
+            <img id="pedal-artwork-img" src="" alt="" style="display:block;width:100%;max-height:180px;object-fit:contain;opacity:0;transition:opacity 0.4s ease;"/>
+            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.65));padding:3px 8px;font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.5);text-align:right;">📷 press photo</div>
+          </div>
           <div class="pedal-identity">
             <div class="pedal-brand-lbl" id="p-brand">—</div>
             <div class="pedal-model-lbl" id="p-model">—</div>
@@ -1181,13 +1186,18 @@ function getPedalChar(p){
   return PEDAL_CHAR[key] || null;
 }
 
-/* ── Artwork URLs for known pedals (CC-licensed / press images) ── */
+/* ── Artwork: use Wikimedia Commons FilePath redirects (CORS-safe, CC-licensed) ── */
 const PEDAL_ART = {
-  'boss ds-1':           'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Boss_DS-1_Distortion.jpg/320px-Boss_DS-1_Distortion.jpg',
-  'proco rat2':          'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/ProCo_RAT2.jpg/320px-ProCo_RAT2.jpg',
-  'electro-harmonix big muff pi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/EHX_Big_Muff_Pi.jpg/320px-EHX_Big_Muff_Pi.jpg',
-  'dunlop fuzz face':    'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Dallas_Arbiter_Fuzz_Face.jpg/320px-Dallas_Arbiter_Fuzz_Face.jpg',
-  'ibanez ts9 tube screamer': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Ibanez_TS9.jpg/320px-Ibanez_TS9.jpg',
+  'boss ds-1':                    'https://commons.wikimedia.org/wiki/Special:FilePath/Boss_DS-1_distortion_pedal.jpg?width=300',
+  'proco rat2':                   'https://commons.wikimedia.org/wiki/Special:FilePath/ProCo_RAT2_pedal.jpg?width=300',
+  'electro-harmonix big muff pi': 'https://commons.wikimedia.org/wiki/Special:FilePath/EHX_Big_Muff_Pi_Reissue.jpg?width=300',
+  'dunlop fuzz face':             'https://commons.wikimedia.org/wiki/Special:FilePath/Fuzz_Face.jpg?width=300',
+  'ibanez ts9 tube screamer':     'https://commons.wikimedia.org/wiki/Special:FilePath/Ibanez_TS9_Tube_Screamer.jpg?width=300',
+  'mxr phase 90':                 'https://commons.wikimedia.org/wiki/Special:FilePath/MXR_Phase_90.jpg?width=300',
+  'electro-harmonix small clone': 'https://commons.wikimedia.org/wiki/Special:FilePath/Electro-Harmonix_Small_Clone_chorus_pedal.jpg?width=300',
+  'strymon bigsky':               'https://commons.wikimedia.org/wiki/Special:FilePath/Strymon_BigSky_reverb_pedal.jpg?width=300',
+  'boss dd-8':                    'https://commons.wikimedia.org/wiki/Special:FilePath/Boss_DD-8_delay.jpg?width=300',
+  'boss bd-2 blues driver':       'https://commons.wikimedia.org/wiki/Special:FilePath/Boss_BD-2_Blues_Driver.jpg?width=300',
 };
 
 function getPedalArtUrl(p){
@@ -1337,36 +1347,21 @@ function renderPedal(p){
 }
 
 function renderPedalArtwork(p){
-  // Look for or create artwork panel above the SVG
-  let artWrap = document.getElementById('pedal-artwork-wrap');
-  if(!artWrap){
-    artWrap = document.createElement('div');
-    artWrap.id = 'pedal-artwork-wrap';
-    artWrap.style.cssText='display:none;align-items:center;justify-content:center;gap:14px;padding:10px 16px 0;';
-    const svgWrap = document.getElementById('pedal-svg-wrap');
-    if(svgWrap && svgWrap.parentNode) svgWrap.parentNode.insertBefore(artWrap, svgWrap);
-  }
+  const artWrap = document.getElementById('pedal-artwork-wrap');
+  const artImg  = document.getElementById('pedal-artwork-img');
+  if(!artWrap || !artImg) return;
 
   const artUrl = getPedalArtUrl(p);
   if(artUrl){
-    artWrap.style.display = 'flex';
-    artWrap.innerHTML = `
-      <div style="position:relative;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.5);border:1.5px solid var(--border2);max-width:160px;background:var(--surface2);">
-        <img src="${artUrl}"
-             alt="${p.brand} ${p.model}"
-             style="display:block;width:160px;max-height:160px;object-fit:contain;opacity:0;transition:opacity 0.4s ease;"
-             onload="this.style.opacity='1'"
-             onerror="this.closest('#pedal-artwork-wrap').style.display='none'"/>
-        <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.7));padding:4px 8px;font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.6);text-align:center;">photo</div>
-      </div>
-      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);text-align:center;line-height:1.6;">
-        <div style="color:var(--text2);font-size:13px;font-weight:600;">${p.brand}</div>
-        <div style="color:var(--accent);font-size:16px;font-weight:700;letter-spacing:.02em;">${p.model}</div>
-        <div style="margin-top:4px;padding:2px 8px;background:var(--surface3);border-radius:4px;display:inline-block;text-transform:uppercase;letter-spacing:.08em;font-size:9px;color:var(--text3);">${p.type}</div>
-      </div>`;
+    // Reset opacity for fade-in animation
+    artImg.style.opacity = '0';
+    artImg.alt = `${p.brand} ${p.model}`;
+    artImg.onload  = () => { artImg.style.opacity = '1'; artWrap.style.display = 'block'; };
+    artImg.onerror = () => { artWrap.style.display = 'none'; };
+    artImg.src = artUrl;
   } else {
     artWrap.style.display = 'none';
-    artWrap.innerHTML = '';
+    artImg.src = '';
   }
 }
 
@@ -1617,7 +1612,7 @@ function applyZoomDrag(clientY){
   _updateKnobGroup(zoomDragging.g, name, zoomDragging.cx, zoomDragging.cy, pct, true);
   const mainG=document.querySelector(`#pedal-svg-wrap .knob-g[data-knob="${name}"]`);
   if(mainG) _updateKnobGroup(mainG, name, +mainG.dataset.cx, +mainG.dataset.cy, pct, false);
-  if(isPlaying){clearTimeout(svgRebuildTimer);svgRebuildTimer=setTimeout(rebuildAudio,120);}
+  if(isPlaying){clearTimeout(svgRebuildTimer);svgRebuildTimer=setTimeout(rebuildAudio,40);}
 }
 function onZoomKnobUp(){
   zoomDragging=null;
@@ -1686,8 +1681,34 @@ function applySVGDrag(clientY){
   knobVals[name]=newV;
   const pct=(newV-m.min)/(m.max-m.min);
   _updateKnobGroup(g, name, cx, cy, pct, false);
-  if(isPlaying){clearTimeout(svgRebuildTimer);svgRebuildTimer=setTimeout(rebuildAudio,120);}
+  showKnobTooltip(name, newV, m);
+  if(isPlaying){clearTimeout(svgRebuildTimer);svgRebuildTimer=setTimeout(rebuildAudio,40);}
 }
+let _knobTipTimer=null;
+function showKnobTooltip(name, val, m){
+  let tip = document.getElementById('knob-tip');
+  if(!tip){
+    tip = document.createElement('div');
+    tip.id = 'knob-tip';
+    tip.style.cssText='position:fixed;z-index:9999;background:rgba(0,0,0,0.85);color:#fff;font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:6px;pointer-events:none;border:1px solid var(--accent);white-space:nowrap;transition:opacity 0.15s;';
+    document.body.appendChild(tip);
+  }
+  // Format value nicely
+  let display = Math.round(val);
+  if(name==='time') display = val.toFixed(0)+'ms';
+  else if(name==='decay'||name==='mix'||name==='feedback') display = Math.round(val)+'%';
+  else if(name==='rate') display = (val/100*8).toFixed(1)+'Hz';
+  tip.textContent = `${name.toUpperCase()}  ${display}`;
+  tip.style.opacity='1';
+  // Follow mouse
+  const onMove = e => { tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY-28)+'px'; };
+  tip._mover && window.removeEventListener('mousemove', tip._mover);
+  tip._mover = onMove;
+  window.addEventListener('mousemove', onMove);
+  clearTimeout(_knobTipTimer);
+  _knobTipTimer = setTimeout(()=>{ tip.style.opacity='0'; window.removeEventListener('mousemove', tip._mover); }, 1200);
+}
+
 function onSVGKnobUp(){
   svgDragging=null;
   window.removeEventListener('mousemove', onSVGKnobMove);
