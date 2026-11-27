@@ -1186,23 +1186,26 @@ function getPedalChar(p){
   return PEDAL_CHAR[key] || null;
 }
 
-/* ── Artwork: use Wikimedia Commons FilePath redirects (CORS-safe, CC-licensed) ── */
-const PEDAL_ART = {
-  'boss ds-1':                    'https://commons.wikimedia.org/wiki/Special:FilePath/Boss_DS-1_distortion_pedal.jpg?width=300',
-  'proco rat2':                   'https://commons.wikimedia.org/wiki/Special:FilePath/ProCo_RAT2_pedal.jpg?width=300',
-  'electro-harmonix big muff pi': 'https://commons.wikimedia.org/wiki/Special:FilePath/EHX_Big_Muff_Pi_Reissue.jpg?width=300',
-  'dunlop fuzz face':             'https://commons.wikimedia.org/wiki/Special:FilePath/Fuzz_Face.jpg?width=300',
-  'ibanez ts9 tube screamer':     'https://commons.wikimedia.org/wiki/Special:FilePath/Ibanez_TS9_Tube_Screamer.jpg?width=300',
-  'mxr phase 90':                 'https://commons.wikimedia.org/wiki/Special:FilePath/MXR_Phase_90.jpg?width=300',
-  'electro-harmonix small clone': 'https://commons.wikimedia.org/wiki/Special:FilePath/Electro-Harmonix_Small_Clone_chorus_pedal.jpg?width=300',
-  'strymon bigsky':               'https://commons.wikimedia.org/wiki/Special:FilePath/Strymon_BigSky_reverb_pedal.jpg?width=300',
-  'boss dd-8':                    'https://commons.wikimedia.org/wiki/Special:FilePath/Boss_DD-8_delay.jpg?width=300',
-  'boss bd-2 blues driver':       'https://commons.wikimedia.org/wiki/Special:FilePath/Boss_BD-2_Blues_Driver.jpg?width=300',
+/* ── Artwork: Wikipedia search terms — resolved client-side via Wikimedia API ── */
+const PEDAL_ART_SEARCH = {
+  'boss ds-1':                    'Boss DS-1',
+  'proco rat2':                   'Pro Co RAT',
+  'electro-harmonix big muff pi': 'Big Muff',
+  'dunlop fuzz face':             'Fuzz Face',
+  'ibanez ts9 tube screamer':     'Ibanez Tube Screamer',
+  'mxr phase 90':                 'MXR Phase 90',
+  'electro-harmonix small clone': 'Small Clone',
+  'boss bd-2 blues driver':       'Boss Blues Driver',
+  'mxr distortion+':              'MXR Distortion+',
+  'boss mt-2 metal zone':         'Boss MT-2',
 };
 
-function getPedalArtUrl(p){
+// Cache resolved image URLs to avoid repeat API calls
+const _artCache = {};
+
+function getPedalArtSearch(p){
   const key = `${p.brand} ${p.model}`.toLowerCase();
-  return PEDAL_ART[key] || null;
+  return PEDAL_ART_SEARCH[key] || null;
 }
 
 function buildLocalPedal(hint){
@@ -1346,22 +1349,43 @@ function renderPedal(p){
   resizeCanvas();
 }
 
-function renderPedalArtwork(p){
+async function renderPedalArtwork(p){
   const artWrap = document.getElementById('pedal-artwork-wrap');
   const artImg  = document.getElementById('pedal-artwork-img');
   if(!artWrap || !artImg) return;
 
-  const artUrl = getPedalArtUrl(p);
-  if(artUrl){
-    // Reset opacity for fade-in animation
-    artImg.style.opacity = '0';
-    artImg.alt = `${p.brand} ${p.model}`;
-    artImg.onload  = () => { artImg.style.opacity = '1'; artWrap.style.display = 'block'; };
-    artImg.onerror = () => { artWrap.style.display = 'none'; };
-    artImg.src = artUrl;
-  } else {
+  const searchTerm = getPedalArtSearch(p);
+  if(!searchTerm){ artWrap.style.display='none'; artImg.src=''; return; }
+
+  const cacheKey = `${p.brand} ${p.model}`.toLowerCase();
+  artImg.style.opacity = '0';
+  artImg.alt = `${p.brand} ${p.model}`;
+
+  // Show wrap immediately with loading state
+  artWrap.style.display = 'block';
+
+  try {
+    // Check cache first
+    let imgUrl = _artCache[cacheKey];
+    if(!imgUrl){
+      // Use Wikipedia REST API to find the page image
+      const apiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(searchTerm)}`;
+      const res = await fetch(apiUrl);
+      if(res.ok){
+        const data = await res.json();
+        imgUrl = data.originalimage?.source || data.thumbnail?.source || null;
+        if(imgUrl) _artCache[cacheKey] = imgUrl;
+      }
+    }
+    if(imgUrl){
+      artImg.onload  = () => { artImg.style.opacity='1'; artWrap.style.display='block'; };
+      artImg.onerror = () => { artWrap.style.display='none'; };
+      artImg.src = imgUrl;
+    } else {
+      artWrap.style.display = 'none';
+    }
+  } catch(e) {
     artWrap.style.display = 'none';
-    artImg.src = '';
   }
 }
 
