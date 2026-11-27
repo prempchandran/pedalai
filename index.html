@@ -1137,28 +1137,43 @@ async function loadPedalDirect(hint){
   if(!apiKey){
     // Free mode: build pedal from local defaults, no API needed
     const pedal = buildLocalPedal(hint);
-    setLed('off'); stopAudio();
+    stopAudio();
+    pedalData = pedal;
+    knobVals = {};
+    pedal.knobs.forEach(k=>{
+      const m = KNOB_META[k]||{min:0,max:100};
+      const v = pedal.params?pedal.params[k]:undefined;
+      knobVals[k] = (v!==undefined&&!isNaN(v))?Math.min(Math.max(Number(v),m.min),m.max):(m.min+m.max)/2;
+    });
     renderPedal(pedal);
+    setLed('on');
+    const ab = document.getElementById('add-chain-btn');
+    if(ab) ab.style.display = '';
     return;
   }
   await loadPedalCore(hint.brand+' '+hint.name, hint);
 }
 
 function buildLocalPedal(hint){
+  // knob names must match what buildEffectChain reads from kv:
+  //   gPct = kv.gain ?? kv.drive ?? kv.fuzz ?? kv.sustain
+  //   tPct = kv.tone
+  //   wPct = kv.mix ?? kv.level ?? kv.volume
   const defaults = {
-    distortion: {knobs:['gain','tone','level'], params:{gain:65,tone:50,level:60,distortion_character:'hard_clip',freq_emphasis:'mid',warmth:0.4,brightness:0.6,wetDry:0.85}},
-    overdrive:  {knobs:['drive','tone','level'], params:{gain:55,tone:50,level:60,distortion_character:'soft_clip',freq_emphasis:'mid',warmth:0.6,brightness:0.5,wetDry:0.8}},
-    fuzz:       {knobs:['fuzz','volume','tone'], params:{gain:80,tone:45,level:65,distortion_character:'fuzz',freq_emphasis:'low_mid',warmth:0.7,brightness:0.3,wetDry:0.9}},
-    phaser:     {knobs:['rate','depth','feedback','level'], params:{gain:0,tone:50,level:60,rate:0.5,depth:0.6,feedback:0.4,wetDry:0.5}},
-    chorus:     {knobs:['rate','depth','level'], params:{gain:0,tone:50,level:60,rate:0.4,depth:0.5,wetDry:0.5}},
-    flanger:    {knobs:['rate','depth','feedback','level'], params:{gain:0,tone:50,level:60,rate:0.3,depth:0.6,feedback:0.5,wetDry:0.5}},
-    delay:      {knobs:['time','feedback','mix'], params:{gain:0,tone:50,level:60,delayTime:0.35,feedback:0.4,wetDry:0.35}},
-    reverb:     {knobs:['decay','mix','tone'], params:{gain:0,tone:50,level:60,decay:0.5,wetDry:0.4}},
-    tremolo:    {knobs:['rate','depth','level'], params:{gain:0,tone:50,level:60,rate:0.5,depth:0.7,wetDry:1.0}},
-    compressor: {knobs:['sustain','attack','level'], params:{gain:0,tone:50,level:60,wetDry:1.0}},
-    boost:      {knobs:['gain','level'], params:{gain:40,tone:50,level:70,wetDry:1.0}},
-    eq:         {knobs:['bass','mid','treble','level'], params:{gain:0,tone:50,level:60,wetDry:1.0}},
-    wah:        {knobs:['freq','q','level'], params:{gain:0,tone:50,level:60,wetDry:1.0}},
+    distortion: {knobs:['gain','tone','level'],   params:{gain:65, tone:50, level:60}},
+    overdrive:  {knobs:['drive','tone','level'],  params:{drive:55, tone:50, level:60}},
+    fuzz:       {knobs:['fuzz','volume','tone'],  params:{fuzz:80, volume:65, tone:45}},
+    phaser:     {knobs:['rate','depth','level'],  params:{rate:50, depth:60, level:60}},
+    chorus:     {knobs:['rate','depth','level'],  params:{rate:40, depth:50, level:60}},
+    flanger:    {knobs:['rate','depth','level'],  params:{rate:30, depth:60, level:60}},
+    delay:      {knobs:['time','feedback','mix'], params:{time:50, feedback:40, mix:40}},
+    reverb:     {knobs:['decay','mix','tone'],    params:{decay:50, mix:40, tone:50}},
+    tremolo:    {knobs:['rate','depth','level'],  params:{rate:50, depth:70, level:60}},
+    compressor: {knobs:['sustain','tone','level'],params:{sustain:60, tone:50, level:60}},
+    boost:      {knobs:['gain','level'],          params:{gain:40, level:70}},
+    eq:         {knobs:['bass','mid','treble'],   params:{bass:50, mid:50, treble:50}},
+    wah:        {knobs:['freq','level'],          params:{freq:50, level:60}},
+    envelope:   {knobs:['sensitivity','level'],  params:{sensitivity:60, level:60}},
   };
   const d = defaults[hint.type] || defaults.distortion;
   const shape = hint.name.toLowerCase().includes('fuzz face') ? 'round'
@@ -1167,7 +1182,7 @@ function buildLocalPedal(hint){
     brand: hint.brand,
     model: hint.name,
     type:  hint.type,
-    description: `${hint.brand} ${hint.name} — classic ${hint.type} pedal. Load in AI Mode to fetch detailed specs.`,
+    description: `${hint.brand} ${hint.name} — classic ${hint.type} pedal. Switch to AI Mode to fetch real specs from Claude.`,
     color: hint.color,
     bodyColor: hint.bodyColor,
     textColor: '#FFFFFF',
