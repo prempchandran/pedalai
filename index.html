@@ -512,7 +512,7 @@ footer a:hover{color:var(--accent)}
 /* ═══ TOUR OVERLAY ═══ */
 #tour-overlay{position:fixed;inset:0;z-index:9000;pointer-events:none;opacity:0;transition:opacity 0.3s}
 #tour-overlay.active{opacity:1;pointer-events:all}
-#tour-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.35);backdrop-filter:blur(2px)}
+#tour-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.15)}
 #tour-card{position:absolute;background:var(--surface);border:2px solid var(--accent);border-radius:14px;box-shadow:0 8px 48px rgba(0,0,0,.7),0 0 0 1px rgba(75,158,255,.15);padding:22px 24px 18px;max-width:340px;min-width:280px;z-index:9001}
 #tour-card::before{content:'';position:absolute;width:0;height:0;border:9px solid transparent}
 #tour-card.arrow-up::before{top:-18px;left:50%;transform:translateX(-50%);border-bottom-color:var(--accent)}
@@ -530,7 +530,7 @@ footer a:hover{color:var(--accent)}
 .tour-dots{display:flex;gap:6px;margin-left:auto;align-items:center}
 .tour-dot{width:7px;height:7px;border-radius:50%;background:var(--border2);transition:background .2s}
 .tour-dot.on{background:var(--accent)}
-#tour-highlight{position:absolute;border-radius:8px;box-shadow:0 0 0 4000px rgba(0,0,0,.35),0 0 0 3px var(--accent);transition:all .35s cubic-bezier(.4,0,.2,1);z-index:9000;pointer-events:none}
+#tour-highlight{position:absolute;border-radius:8px;box-shadow:0 0 0 4000px rgba(0,0,0,.15),0 0 0 3px var(--accent);transition:all .35s cubic-bezier(.4,0,.2,1);z-index:9000;pointer-events:none}
 #tour-highlight.hidden{opacity:0}
 
 </style>
