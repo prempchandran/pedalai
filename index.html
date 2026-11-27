@@ -1,0 +1,2588 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PedalAI — Guitar Pedal Emulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══ TOKENS ═══ */
+:root {
+  --amber:#E8A020; --amber-glow:#E8A02044; --amber-dim:#7A5410;
+  --red-led:#FF3020; --red-glow:#FF302055;
+  --green:#22DD55; --danger:#E84030;
+  --mono:'Share Tech Mono','Courier New',monospace;
+  --sans:'Inter',system-ui,sans-serif;
+  --display:'Bebas Neue',Impact,sans-serif;
+  --tr:0.2s ease;
+}
+[data-theme="dark"] {
+  --bg:#0F0D0B; --surface:#1A1612; --surface2:#231F1A; --surface3:#2D2822;
+  --panel:#1E1A15; --velcro-a:#181410; --velcro-b:#121008;
+  --border:#3A342C; --border2:#4A433A; --border-hi:#7A5410;
+  --text:#EDE5D8; --text2:#9A8F82; --text3:#5C534A;
+  --screw:#2E2922; --screw-hi:#4A4238;
+  --kb:#282420; --ks:#3A3530; --kd:#141210;
+  --inp:#1A1612; --hw-bg:#1A1400; --hw-bdr:#5A3D08;
+  --sh:0 6px 28px rgba(0,0,0,.75),0 2px 6px rgba(0,0,0,.5);
+  --sh-sm:0 2px 8px rgba(0,0,0,.5);
+  --cat-active-bg:rgba(232,160,32,.12);
+}
+[data-theme="light"] {
+  --bg:#E8EDF2; --surface:#FFFFFF; --surface2:#F2F4F7; --surface3:#E4E8EE;
+  --panel:#FFFFFF; --velcro-a:#3A4252; --velcro-b:#2E3544;
+  --border:#CBD2DC; --border2:#A8B4C4; --border-hi:#C07010;
+  --text:#0D1117; --text2:#3A4252; --text3:#57677A;
+  --screw:#8A96A4; --screw-hi:#C8D0DA;
+  --kb:#3A3830; --ks:#5A5850; --kd:#1A1814;
+  --inp:#F8FAFC; --hw-bg:#FFFBF0; --hw-bdr:#D09030;
+  --sh:0 4px 20px rgba(0,0,0,.12),0 1px 4px rgba(0,0,0,.08);
+  --sh-sm:0 2px 6px rgba(0,0,0,.08);
+  --cat-active-bg:rgba(192,112,16,.10);
+  --amber:#A05E08; --amber-glow:#A05E0844; --amber-dim:#7A4606;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);font-size:15px;background-color:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;transition:background-color var(--tr),color var(--tr)}
+.velcro{background-color:var(--velcro-a);background-image:repeating-linear-gradient(0deg,transparent,transparent 3px,var(--velcro-b) 3px,var(--velcro-b) 4px),repeating-linear-gradient(90deg,transparent,transparent 3px,var(--velcro-b) 3px,var(--velcro-b) 4px)}
+
+/* ─── HEADER ─── */
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:var(--surface);border-bottom:2px solid var(--border);box-shadow:var(--sh-sm);z-index:20;transition:background var(--tr)}
+.logo{font-family:var(--display);font-size:28px;letter-spacing:.1em;color:var(--amber);line-height:1}
+.logo-sub{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.08em}
+.hdr-mid{display:flex;align-items:center;gap:10px}
+.theme-toggle{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--text3);cursor:pointer;user-select:none;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);transition:all var(--tr)}
+.theme-toggle:hover{border-color:var(--amber-dim);color:var(--text2)}
+.sw{width:30px;height:17px;background:var(--surface3);border-radius:9px;border:1px solid var(--border2);position:relative;transition:background var(--tr);flex-shrink:0}
+.sw::after{content:'';position:absolute;width:11px;height:11px;border-radius:50%;background:var(--text3);top:2px;left:2px;transition:transform var(--tr),background var(--tr)}
+[data-theme="light"] .sw{background:var(--amber-dim)}
+[data-theme="light"] .sw::after{transform:translateX(13px);background:var(--amber)}
+.hdr-right{text-align:right}
+.created-by{font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;font-family:var(--mono)}
+.author-name{font-size:13px;color:var(--text2);font-family:var(--mono)}
+.author-studio{font-size:10px;color:var(--amber);letter-spacing:.05em;text-transform:uppercase;font-family:var(--mono);margin-top:1px}
+.author-email{color:var(--amber-dim);text-decoration:none;font-size:11px;font-family:var(--mono)}
+.author-email:hover{color:var(--amber)}
+
+/* ─── LAYOUT ─── */
+.app-body{display:grid;grid-template-columns:340px 1fr;gap:0;flex:1;min-height:0}
+@media(max-width:900px){.app-body{grid-template-columns:1fr}}
+
+/* ─── LEFT SIDEBAR ─── */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;transition:background var(--tr)}
+
+/* API key accordion */
+.acc-wrap{border-bottom:1px solid var(--border)}
+.acc-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none;transition:background var(--tr)}
+.acc-hdr:hover{background:var(--surface2)}
+.acc-title{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text2)}
+.s-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);transition:background .3s,box-shadow .3s;flex-shrink:0}
+.s-dot.ok{background:var(--green);box-shadow:0 0 7px var(--green)}
+.s-dot.err{background:var(--danger)}
+.s-lbl{font-family:var(--mono);font-size:9px;color:var(--text3)}
+.s-lbl.ok{color:var(--green)} .s-lbl.err{color:var(--danger)}
+.chev{color:var(--text3);font-size:12px;transition:transform .2s}
+.chev.open{transform:rotate(180deg)}
+.acc-body{display:none;padding:14px 16px;border-top:1px solid var(--border)}
+.acc-body.open{display:block}
+
+/* how-to */
+.howto{background:var(--hw-bg);border:1px solid var(--hw-bdr);border-radius:7px;padding:13px 14px;margin-bottom:13px;transition:background var(--tr)}
+.howto-title{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin-bottom:10px}
+.howto ol{list-style:none;display:flex;flex-direction:column;gap:9px}
+.howto li{display:flex;gap:10px;font-size:12px;color:var(--text2);line-height:1.55}
+.sn{font-family:var(--mono);font-size:9px;color:var(--amber);background:rgba(232,160,32,.1);border:1px solid var(--amber-dim);border-radius:3px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.howto a{color:var(--amber);text-decoration:none}
+.howto a:hover{text-decoration:underline}
+.howto code{font-family:var(--mono);font-size:11px;background:rgba(255,255,255,.07);padding:1px 5px;border-radius:3px;color:var(--text)}
+[data-theme="light"] .howto code{background:rgba(0,0,0,.07)}
+.api-note{margin-top:9px;font-size:10px;color:var(--text3);font-family:var(--mono);line-height:1.6}
+
+/* inputs */
+.fl{display:flex;gap:7px;align-items:stretch}
+.fld-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;display:block}
+.ti{flex:1;background:var(--inp);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-family:var(--mono);font-size:12px;padding:9px 12px;outline:none;transition:border-color .15s,background var(--tr)}
+.ti::placeholder{color:var(--text3)} .ti:focus{border-color:var(--amber-dim)}
+.ti.ok{border-color:#22DD5555} .ti.err{border-color:#E8403055}
+.btn{font-family:var(--mono);font-size:11px;padding:9px 14px;border-radius:5px;border:1px solid var(--border2);cursor:pointer;white-space:nowrap;transition:all .15s;letter-spacing:.04em}
+.btn-p{background:var(--amber);color:#0A0800;border-color:var(--amber);font-size:12px;padding:10px 20px}
+.btn-p:hover{opacity:.85} .btn-p:disabled{opacity:.35;cursor:not-allowed}
+.btn-s{background:var(--surface2);color:var(--text2)} .btn-s:hover{border-color:var(--amber-dim);color:var(--amber)}
+.btn-g{background:transparent;color:var(--text3)} .btn-g:hover{border-color:var(--danger);color:var(--danger)}
+
+/* categories */
+.cat-section{padding:14px 16px;border-bottom:1px solid var(--border)}
+.section-title{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.cat-pills{display:flex;flex-wrap:wrap;gap:6px}
+.cat-pill{font-family:var(--mono);font-size:10px;padding:5px 11px;border-radius:20px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all .15s;letter-spacing:.05em;white-space:nowrap}
+.cat-pill:hover{border-color:var(--amber-dim);color:var(--amber)}
+.cat-pill.active{border-color:var(--amber);color:var(--amber);background:var(--cat-active-bg)}
+
+/* pedal grid */
+.pedal-grid-section{padding:14px 16px;border-bottom:1px solid var(--border);flex:1}
+.pedal-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}
+.pedal-card{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:9px 10px;cursor:pointer;transition:all .15s}
+.pedal-card:hover{border-color:var(--amber-dim);background:var(--surface3)}
+.pedal-card.active{border-color:var(--amber);background:var(--cat-active-bg)}
+.pc-brand{font-family:var(--mono);font-size:8px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px}
+.pc-name{font-family:var(--mono);font-size:11px;color:var(--text);line-height:1.3}
+.pc-type{font-size:9px;color:var(--amber);font-family:var(--mono);margin-top:3px}
+
+/* custom search */
+.search-section{padding:14px 16px}
+.err-line{font-size:11px;color:var(--danger);margin-top:7px;font-family:var(--mono);display:none}
+.search-hint{font-size:10px;color:var(--text3);margin-top:6px;font-family:var(--mono)}
+
+/* ─── RIGHT PANEL: PEDALBOARD ─── */
+.board-panel{display:flex;flex-direction:column;overflow:hidden}
+.board-stage{flex:1;padding:24px;display:flex;flex-direction:column;gap:20px}
+
+/* empty state */
+.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--text3)}
+.empty-icon{width:56px;height:56px;opacity:.2}
+.empty-state p{font-size:12px;font-family:var(--mono);letter-spacing:.04em}
+.empty-state .hint-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:4px}
+.hint-chip{font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:12px;border:1px solid var(--border2);background:var(--surface2);color:var(--text3);cursor:pointer;transition:all .15s}
+.hint-chip:hover{border-color:var(--amber-dim);color:var(--amber)}
+
+/* pedal loaded layout */
+.pedal-loaded{display:none;flex-direction:column;gap:20px}
+
+/* top row: image + info */
+.pedal-top-row{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:start}
+@media(max-width:700px){.pedal-top-row{grid-template-columns:1fr}}
+
+/* SVG pedalboard card with interactive knobs */
+.board-card{position:relative;flex-shrink:0}
+#pedal-svg-wrap{filter:drop-shadow(0 8px 24px rgba(0,0,0,.6));cursor:default}
+#pedal-svg-wrap svg{display:block}
+
+/* right info pane */
+.pedal-info{display:flex;flex-direction:column;gap:14px;min-width:0}
+.pedal-identity{}
+.pedal-brand-lbl{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.14em;text-transform:uppercase;margin-bottom:2px}
+.pedal-model-lbl{font-family:var(--display);font-size:40px;letter-spacing:.06em;color:var(--text);line-height:1}
+.effect-badge{display:inline-flex;align-items:center;gap:5px;margin-top:6px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:3px 10px;border-radius:4px;background:rgba(232,160,32,.1);border:1px solid var(--border-hi);color:var(--amber)}
+.pedal-desc{font-size:12px;color:var(--text2);line-height:1.7;font-family:var(--mono);padding:11px 14px;background:var(--surface2);border-radius:6px;border-left:3px solid var(--amber-dim);transition:background var(--tr)}
+.pedal-led-row{display:flex;align-items:center;gap:10px}
+.pled{width:14px;height:14px;border-radius:50%;background:#1a0a0a;border:1px solid #2a1a1a;box-shadow:inset 0 1px 2px rgba(0,0,0,.6);transition:all .3s;flex-shrink:0}
+.pled.on{background:var(--red-led);box-shadow:0 0 12px var(--red-glow),0 0 4px var(--red-led)}
+.pled.seek{background:var(--amber);box-shadow:0 0 8px var(--amber-glow);animation:lblink .55s infinite alternate}
+@keyframes lblink{from{opacity:.3}to{opacity:1}}
+.pled-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase}
+
+/* waveform scope */
+.scope-wrap{}
+.scope-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.scope-lbl::after{content:'';flex:1;height:1px;background:var(--border)}
+#waveform{width:100%;height:56px;display:block;border-radius:6px;background:var(--inp);border:1px solid var(--border);transition:background var(--tr)}
+
+/* controls */
+.controls-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.stomp-btn{display:flex;align-items:center;gap:8px;background:var(--surface3);border:2px solid var(--border2);border-radius:8px;color:var(--text2);font-family:var(--mono);font-size:11px;padding:10px 18px;cursor:pointer;transition:all .15s;letter-spacing:.05em;text-transform:uppercase;box-shadow:0 3px 0 var(--border),0 3px 6px rgba(0,0,0,.3);position:relative;top:0}
+.stomp-btn:hover{border-color:var(--amber-dim);color:var(--text)}
+.stomp-btn:active{top:2px;box-shadow:0 1px 0 var(--border)}
+.stomp-btn.active{border-color:var(--amber);color:var(--amber);box-shadow:0 3px 0 var(--amber-dim),0 0 12px var(--amber-glow)}
+.stomp-btn .dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex-shrink:0}
+.bypass-btn{background:transparent}
+.bypass-btn.on{background:rgba(232,160,32,.08);border-color:var(--amber-dim);color:var(--amber)}
+
+/* signal chain */
+.sig-chain{display:flex;align-items:center;overflow-x:auto;gap:0;font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.08em;padding:14px 0 2px;border-top:1px solid var(--border)}
+.sc-node{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0}
+.sc-box{background:var(--surface3);border:1px solid var(--border2);border-radius:4px;padding:4px 10px;font-size:9px;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;transition:all var(--tr)}
+.sc-box.live{border-color:var(--amber-dim);color:var(--amber);background:rgba(232,160,32,.07)}
+.sc-cable{width:28px;flex-shrink:0;display:flex;align-items:center}
+.sc-jack{width:8px;height:8px;border-radius:50%;background:var(--border2);border:1px solid var(--border);flex-shrink:0}
+
+/* ─── SCREWS ─── */
+.screw{position:absolute;width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--screw-hi),var(--screw) 60%);border:1px solid var(--border);box-shadow:inset 0 1px 2px rgba(0,0,0,.5)}
+.screw::before,.screw::after{content:'';position:absolute;background:rgba(0,0,0,.45);border-radius:1px;top:50%;left:50%;transform:translate(-50%,-50%)}
+.screw::before{width:6px;height:1.5px} .screw::after{width:1.5px;height:6px}
+.screw-tl{top:7px;left:7px} .screw-tr{top:7px;right:7px}
+.screw-bl{bottom:7px;left:7px} .screw-br{bottom:7px;right:7px}
+
+/* ─── FOOTER ─── */
+footer{padding:14px 24px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;font-family:var(--mono);font-size:11px;color:var(--text3);transition:background var(--tr)}
+footer strong{color:var(--text2);font-weight:400}
+footer a{color:var(--amber-dim);text-decoration:none}
+footer a:hover{color:var(--amber)}
+
+@media(max-width:900px){.app-body{grid-template-columns:1fr}.sidebar{border-right:none;border-bottom:1px solid var(--border)}}
+@media(max-width:600px){header{padding:12px 16px}.hdr-mid{display:none}.pedal-model-lbl{font-size:28px}footer{padding:12px 16px;font-size:10px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ─── ZOOM OVERLAY ─── */
+#zoom-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.82); z-index:1000;
+  align-items:center; justify-content:center;
+  backdrop-filter:blur(4px);
+}
+#zoom-overlay.open { display:flex; }
+#zoom-modal {
+  position:relative;
+  width:min(520px, 90vw);
+  height:min(640px, 88vh);
+  display:flex; align-items:center; justify-content:center;
+}
+#zoom-content {
+  width:100%; height:100%;
+  display:flex; align-items:center; justify-content:center;
+}
+#zoom-content svg { width:100% !important; height:100% !important; }
+#zoom-close {
+  position:absolute; top:-14px; right:-14px;
+  width:32px; height:32px; border-radius:50%;
+  background:var(--surface3); border:1px solid var(--border2);
+  color:var(--text2); font-size:14px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  z-index:10; transition:all .15s;
+}
+#zoom-close:hover { background:var(--danger); color:#fff; border-color:var(--danger); }
+
+/* ─── BOARD CARD: bigger + zoom button ─── */
+#board-card {
+  position:relative;
+  width: min(260px, 40vw);
+  min-width:140px;
+}
+#pedal-svg-wrap {
+  width:100%; aspect-ratio:auto;
+  filter:drop-shadow(0 8px 24px rgba(0,0,0,.65));
+}
+#pedal-svg-wrap svg { width:100% !important; height:auto !important; display:block; }
+
+.zoom-btn {
+  position:absolute; bottom:-12px; right:-12px;
+  width:28px; height:28px; border-radius:6px;
+  background:var(--surface3); border:1px solid var(--border2);
+  color:var(--text2); font-size:13px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .15s; z-index:5;
+  box-shadow:0 2px 6px rgba(0,0,0,.4);
+}
+.zoom-btn:hover { background:var(--amber); color:#000; border-color:var(--amber); }
+
+
+/* ═══ LIGHT MODE OVERRIDES — high contrast ═══ */
+[data-theme="light"] body { background-color: var(--bg); }
+
+/* Header: white bar, dark logo, crisp border */
+[data-theme="light"] header {
+  background: var(--surface);
+  border-bottom: 2px solid var(--border);
+  box-shadow: 0 1px 0 var(--border), 0 2px 12px rgba(0,0,0,.07);
+}
+[data-theme="light"] .logo { color: var(--amber); }
+[data-theme="light"] .logo-sub { color: var(--text3); }
+[data-theme="light"] .author-email { color: var(--amber-dim); }
+[data-theme="light"] .author-email:hover { color: var(--amber); }
+[data-theme="light"] .created-by { color: var(--text3); }
+[data-theme="light"] .author-name { color: var(--text2); }
+
+/* Sidebar: white bg, strong section labels */
+[data-theme="light"] .sidebar { background: var(--surface); border-right: 1px solid var(--border); }
+[data-theme="light"] .section-title { color: var(--text2); font-weight: 500; }
+[data-theme="light"] .acc-title { color: var(--text); }
+[data-theme="light"] .chev { color: var(--text2); }
+[data-theme="light"] .fld-lbl { color: var(--text2); }
+[data-theme="light"] .search-hint { color: var(--text3); }
+[data-theme="light"] .api-note { color: var(--text3); }
+
+/* Category pills */
+[data-theme="light"] .cat-pill { background: var(--surface2); color: var(--text2); border-color: var(--border); }
+[data-theme="light"] .cat-pill:hover { border-color: var(--amber); color: var(--amber); }
+[data-theme="light"] .cat-pill.active { border-color: var(--amber); color: var(--amber); background: var(--cat-active-bg); }
+
+/* Pedal grid cards */
+[data-theme="light"] .pedal-card { background: var(--surface2); border: 1px solid var(--border); }
+[data-theme="light"] .pedal-card:hover { background: var(--surface3); border-color: var(--amber-dim); }
+[data-theme="light"] .pedal-card.active { border-color: var(--amber); background: var(--cat-active-bg); }
+[data-theme="light"] .pc-brand { color: var(--text3); }
+[data-theme="light"] .pc-name { color: var(--text); font-weight: 500; }
+[data-theme="light"] .pc-type { color: var(--amber); }
+
+/* Inputs */
+[data-theme="light"] .ti { background: var(--inp); border-color: var(--border); color: var(--text); }
+[data-theme="light"] .ti:focus { border-color: var(--amber); }
+[data-theme="light"] .ti::placeholder { color: var(--text3); }
+[data-theme="light"] .btn-s { background: var(--surface2); color: var(--text2); border-color: var(--border); }
+[data-theme="light"] .btn-s:hover { border-color: var(--amber); color: var(--amber); }
+[data-theme="light"] .btn-g { color: var(--text3); border-color: var(--border); }
+[data-theme="light"] .btn-p { background: var(--amber); color: #fff; border-color: var(--amber); }
+
+/* Howto block */
+[data-theme="light"] .howto { background: var(--hw-bg); border-color: var(--hw-bdr); }
+[data-theme="light"] .howto-title { color: var(--amber); }
+[data-theme="light"] .howto li { color: var(--text2); }
+[data-theme="light"] .howto a { color: var(--amber-dim); }
+[data-theme="light"] .howto code { background: rgba(0,0,0,.06); color: var(--text); }
+[data-theme="light"] .sn { color: var(--amber); background: rgba(192,112,16,.1); border-color: var(--amber-dim); }
+
+/* Right info panel */
+[data-theme="light"] .pedal-brand-lbl { color: var(--text3); }
+[data-theme="light"] .pedal-model-lbl { color: var(--text); }
+[data-theme="light"] .effect-badge { color: var(--amber); border-color: var(--amber-dim); background: var(--cat-active-bg); }
+[data-theme="light"] .pedal-desc { background: var(--surface2); border-left-color: var(--amber); color: var(--text2); }
+[data-theme="light"] .pled-lbl { color: var(--text2); }
+
+/* Waveform & controls */
+[data-theme="light"] #waveform { background: var(--surface2); border-color: var(--border); }
+[data-theme="light"] .scope-lbl { color: var(--text3); }
+[data-theme="light"] .scope-lbl::after { background: var(--border); }
+[data-theme="light"] .stomp-btn { background: var(--surface2); border-color: var(--border); color: var(--text2); box-shadow: 0 3px 0 var(--border2), 0 2px 4px rgba(0,0,0,.12); }
+[data-theme="light"] .stomp-btn:hover { border-color: var(--amber); color: var(--text); }
+[data-theme="light"] .stomp-btn.active { border-color: var(--amber); color: var(--amber); box-shadow: 0 3px 0 var(--amber-dim), 0 0 10px var(--amber-glow); }
+[data-theme="light"] .bypass-btn.on { background: rgba(192,112,16,.08); border-color: var(--amber-dim); color: var(--amber); }
+
+/* Signal chain */
+[data-theme="light"] .sig-chain { border-top-color: var(--border); }
+[data-theme="light"] .sc-box { background: var(--surface2); border-color: var(--border); color: var(--text2); }
+[data-theme="light"] .sc-box.live { border-color: var(--amber); color: var(--amber); background: var(--cat-active-bg); }
+[data-theme="light"] .sc-jack { background: var(--border); border-color: var(--border2); }
+
+/* Hint chips */
+[data-theme="light"] .hint-chip { background: var(--surface2); border-color: var(--border); color: var(--text2); }
+[data-theme="light"] .hint-chip:hover { border-color: var(--amber); color: var(--amber); }
+
+/* Footer */
+[data-theme="light"] footer { background: var(--surface); border-top-color: var(--border); color: var(--text3); }
+[data-theme="light"] footer strong { color: var(--text2); }
+[data-theme="light"] footer a { color: var(--amber-dim); }
+[data-theme="light"] footer a:hover { color: var(--amber); }
+
+/* Zoom close btn */
+[data-theme="light"] #zoom-close { background: var(--surface2); border-color: var(--border); color: var(--text2); }
+
+/* Zoom btn */
+[data-theme="light"] .zoom-btn { background: var(--surface2); border-color: var(--border); color: var(--text2); }
+[data-theme="light"] .zoom-btn:hover { background: var(--amber); color: #fff; border-color: var(--amber); }
+
+/* Theme toggle */
+[data-theme="light"] .theme-toggle { background: var(--surface2); border-color: var(--border); color: var(--text2); }
+[data-theme="light"] .theme-toggle:hover { border-color: var(--amber); }
+
+/* ─── MODE TABS ─── */
+.mode-tabs{display:flex;border-bottom:2px solid var(--border);background:var(--surface);flex-shrink:0}
+.mode-tab{flex:1;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:11px 8px;border:none;background:none;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+.mode-tab:hover{color:var(--text2)}
+.mode-tab.active{color:var(--amber);border-bottom-color:var(--amber)}
+[data-theme="light"] .mode-tabs{background:var(--surface);border-bottom-color:var(--border)}
+[data-theme="light"] .mode-tab{color:var(--text3)}
+[data-theme="light"] .mode-tab:hover{color:var(--text2)}
+[data-theme="light"] .mode-tab.active{color:var(--amber);border-bottom-color:var(--amber)}
+
+/* ─── EAR TRAINING SIDEBAR ─── */
+.et-sidebar{padding:16px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;flex:1}
+.et-section{display:flex;flex-direction:column;gap:8px}
+.et-section-title{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text3)}
+.et-mode-btns{display:flex;flex-direction:column;gap:6px}
+.et-mode-btn{font-family:var(--mono);font-size:11px;padding:10px 13px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:pointer;text-align:left;transition:all .15s;line-height:1.4}
+.et-mode-btn:hover{border-color:var(--amber-dim);color:var(--text)}
+.et-mode-btn.active{border-color:var(--amber);color:var(--amber);background:var(--cat-active-bg)}
+.et-mode-name{font-size:11px;font-weight:500}
+.et-mode-desc{font-size:9px;color:var(--text3);margin-top:2px}
+.et-mode-btn.active .et-mode-desc{color:var(--amber-dim)}
+.diff-pills{display:flex;gap:6px}
+.diff-pill{font-family:var(--mono);font-size:9px;padding:4px 10px;border-radius:12px;border:1px solid var(--border2);background:var(--surface2);color:var(--text3);cursor:pointer;transition:all .15s}
+.diff-pill:hover{border-color:var(--amber-dim);color:var(--amber)}
+.diff-pill.active{border-color:var(--amber);color:var(--amber);background:var(--cat-active-bg)}
+.et-score-display{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center}
+.et-score-val{font-family:var(--display);font-size:32px;color:var(--amber);line-height:1}
+.et-score-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-top:2px}
+.et-score-streak{text-align:right}
+.et-score-streak-val{font-family:var(--display);font-size:24px;color:var(--green);line-height:1}
+.et-start-btn{font-family:var(--mono);font-size:12px;padding:12px;border-radius:7px;border:1px solid var(--amber);background:var(--amber);color:#0A0800;cursor:pointer;text-align:center;transition:all .15s;letter-spacing:.06em;text-transform:uppercase}
+.et-start-btn:hover{opacity:.85}
+.et-start-btn:disabled{opacity:.35;cursor:not-allowed}
+[data-theme="light"] .et-mode-btn{background:var(--surface2);border-color:var(--border);color:var(--text2)}
+[data-theme="light"] .et-mode-btn:hover{border-color:var(--amber-dim);color:var(--text)}
+[data-theme="light"] .et-mode-btn.active{border-color:var(--amber);color:var(--amber);background:var(--cat-active-bg)}
+[data-theme="light"] .et-score-display{background:var(--surface2);border-color:var(--border)}
+[data-theme="light"] .et-start-btn{color:#fff}
+
+/* ─── EAR TRAINING MAIN PANEL ─── */
+.et-panel{display:none;flex-direction:column;gap:0;height:100%;padding:28px 32px;overflow-y:auto}
+.et-panel.active{display:flex}
+.et-idle{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;color:var(--text3)}
+.et-idle-icon{font-size:48px;opacity:.4}
+.et-idle-title{font-family:var(--display);font-size:28px;letter-spacing:.08em;color:var(--text2)}
+.et-idle-sub{font-family:var(--mono);font-size:11px;color:var(--text3);text-align:center;max-width:340px;line-height:1.7}
+.et-round{display:none;flex-direction:column;gap:22px}
+.et-round.active{display:flex}
+.et-q-header{display:flex;align-items:center;justify-content:space-between}
+.et-q-num{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.1em}
+.et-q-progress{display:flex;gap:4px}
+.et-prog-dot{width:10px;height:10px;border-radius:50%;background:var(--border2)}
+.et-prog-dot.done{background:var(--green)}
+.et-prog-dot.current{background:var(--amber);box-shadow:0 0 6px var(--amber-glow)}
+.et-q-prompt{font-family:var(--mono);font-size:14px;color:var(--text);line-height:1.6;padding:16px 20px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--amber-dim)}
+[data-theme="light"] .et-q-prompt{background:var(--surface2);border-left-color:var(--amber)}
+.et-listen-row{display:flex;align-items:center;gap:14px}
+.et-listen-btn{display:flex;align-items:center;gap:8px;padding:12px 20px;border-radius:8px;border:2px solid var(--amber-dim);background:var(--surface2);color:var(--amber);font-family:var(--mono);font-size:12px;cursor:pointer;transition:all .2s;text-transform:uppercase;letter-spacing:.06em;box-shadow:0 3px 0 var(--amber-dim)}
+.et-listen-btn:hover{border-color:var(--amber);background:var(--cat-active-bg);box-shadow:0 3px 0 var(--amber),0 0 12px var(--amber-glow)}
+.et-listen-btn:active{transform:translateY(2px);box-shadow:none}
+.et-listen-btn.playing{border-color:var(--green);color:var(--green);box-shadow:0 0 12px rgba(34,221,85,.3);animation:lpulse 1s infinite}
+@keyframes lpulse{0%,100%{box-shadow:0 0 6px rgba(34,221,85,.2)}50%{box-shadow:0 0 18px rgba(34,221,85,.5)}}
+.et-listen-hint{font-family:var(--mono);font-size:10px;color:var(--text3)}
+.et-choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.et-choice{padding:14px 16px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:var(--mono);font-size:12px;cursor:pointer;transition:all .15s;text-align:left;line-height:1.4}
+.et-choice:hover:not(:disabled){border-color:var(--amber-dim);color:var(--text);background:var(--surface3)}
+.et-choice:disabled{cursor:not-allowed}
+.et-choice.correct{border-color:var(--green)!important;background:rgba(34,221,85,.1)!important;color:var(--green)!important}
+.et-choice.wrong{border-color:var(--danger)!important;background:rgba(232,64,48,.08)!important;color:var(--danger)!important}
+.et-choice.reveal{border-color:var(--green)!important;background:rgba(34,221,85,.06)!important;color:var(--green)!important;opacity:.7}
+[data-theme="light"] .et-choice{background:var(--surface2);border-color:var(--border);color:var(--text2)}
+[data-theme="light"] .et-choice:hover:not(:disabled){border-color:var(--amber-dim);background:var(--surface3)}
+.et-feedback{padding:14px 16px;border-radius:8px;border-left:3px solid var(--green);background:rgba(34,221,85,.06);display:none}
+.et-feedback.show{display:block}
+.et-feedback.wrong-fb{border-left-color:var(--danger);background:rgba(232,64,48,.05)}
+.et-fb-title{font-family:var(--mono);font-size:11px;font-weight:600;margin-bottom:5px}
+.et-fb-title.ok{color:var(--green)} .et-fb-title.bad{color:var(--danger)}
+.et-fb-text{font-size:12px;color:var(--text2);line-height:1.65;font-family:var(--mono)}
+[data-theme="light"] .et-feedback{background:rgba(34,221,85,.05)}
+[data-theme="light"] .et-feedback.wrong-fb{background:rgba(232,64,48,.04)}
+[data-theme="light"] .et-fb-text{color:var(--text2)}
+.et-next-btn{align-self:flex-start;font-family:var(--mono);font-size:11px;padding:10px 20px;border-radius:6px;border:1px solid var(--amber);background:var(--amber);color:#0A0800;cursor:pointer;transition:all .15s;display:none;letter-spacing:.06em;text-transform:uppercase}
+.et-next-btn.show{display:inline-block}
+.et-next-btn:hover{opacity:.85}
+[data-theme="light"] .et-next-btn{color:#fff}
+.et-result{display:none;flex-direction:column;align-items:center;gap:20px;padding:20px 0}
+.et-result.active{display:flex}
+.et-result-score{font-family:var(--display);font-size:72px;color:var(--amber);line-height:1}
+.et-result-of{font-family:var(--mono);font-size:12px;color:var(--text3);margin-top:-10px}
+.et-result-msg{font-family:var(--mono);font-size:13px;color:var(--text2);text-align:center;max-width:340px;line-height:1.7}
+.et-result-replay{font-family:var(--mono);font-size:12px;padding:12px 28px;border-radius:7px;border:1px solid var(--amber);background:transparent;color:var(--amber);cursor:pointer;transition:all .15s;letter-spacing:.06em;text-transform:uppercase}
+.et-result-replay:hover{background:var(--cat-active-bg)}
+[data-theme="light"] .et-result-replay{color:var(--amber)}
+/* ═══ INPUT SIGNAL SELECTOR ═══ */
+.input-sel-row{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.input-sel-lbl{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.06em;white-space:nowrap}
+.input-pill{background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:20px;padding:4px 10px;font-size:11px;cursor:pointer;transition:all .15s}
+.input-pill.active,.input-pill:hover{background:var(--amber-glow);color:var(--amber);border-color:var(--border-hi)}
+
+/* ═══ PEDAL CHAIN BOARD ═══ */
+.chain-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.chain-title{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.06em}
+.chain-clear-btn{background:none;border:1px solid var(--border);color:var(--text3);border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer}
+.chain-clear-btn:hover{color:var(--danger);border-color:var(--danger)}
+.chain-board{display:flex;align-items:center;gap:0;overflow-x:auto;padding:8px 4px;min-height:76px;background:var(--velcro-a);background-image:repeating-linear-gradient(0deg,transparent,transparent 3px,var(--velcro-b) 3px,var(--velcro-b) 4px),repeating-linear-gradient(90deg,transparent,transparent 3px,var(--velcro-b) 3px,var(--velcro-b) 4px);border-radius:8px;border:1px solid var(--border)}
+.chain-slot{display:flex;align-items:center;gap:0;flex-shrink:0}
+.chain-pedal{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 10px;cursor:pointer;text-align:center;transition:border-color .15s;min-width:80px;position:relative}
+.chain-pedal:hover{border-color:var(--amber)}
+.chain-pedal.active-chain{border-color:var(--amber);box-shadow:0 0 0 2px var(--amber-glow)}
+.chain-pedal-name{font-size:10px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px}
+.chain-pedal-type{font-family:var(--mono);font-size:9px;color:var(--amber)}
+.chain-pedal-rm{position:absolute;top:-5px;right:-5px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:16px;height:16px;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;opacity:0;transition:opacity .15s}
+.chain-pedal:hover .chain-pedal-rm{opacity:1}
+.chain-cable{width:24px;height:4px;background:var(--border2);border-radius:2px;flex-shrink:0}
+.chain-add-slot{width:52px;height:52px;border:1.5px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:18px;cursor:default;flex-shrink:0}
+.chain-add-slot.can-add{cursor:pointer;color:var(--text2)}
+.chain-add-slot.can-add:hover{border-color:var(--amber);color:var(--amber)}
+.chain-arrow{color:var(--text3);font-size:14px;padding:0 4px;flex-shrink:0}
+.chain-remove-btn{position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:16px;height:16px;font-size:9px;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1;z-index:2;padding:0}
+.chain-pedal:hover .chain-remove-btn{display:flex}
+.add-chain-btn{background:var(--amber-glow)!important;border-color:var(--amber-dim)!important;color:var(--amber)!important;font-size:11px!important}
+.add-chain-btn:hover{background:rgba(232,160,32,.25)!important}
+
+/* waveform bar during ear training playback */
+.et-wave-bar{height:36px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);overflow:hidden;margin-top:4px}
+#et-wave-canvas{display:block;width:100%;height:100%}
+
+/* ═══ FONT RESIZER ═══ */
+.font-resizer{display:flex;align-items:center;gap:4px}
+.font-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:5px;padding:3px 8px;cursor:pointer;font-family:var(--mono);font-size:11px;line-height:1;transition:background var(--tr),color var(--tr)}
+.font-btn:hover{background:var(--amber-glow);color:var(--amber);border-color:var(--border-hi)}
+.font-size-lbl{font-family:var(--mono);font-size:10px;color:var(--text3);min-width:26px;text-align:center}
+
+/* ═══ HELP BUTTON ═══ */
+.help-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:background var(--tr),color var(--tr);margin-left:8px;flex-shrink:0}
+.help-btn:hover{background:var(--amber-glow);color:var(--amber);border-color:var(--border-hi)}
+
+/* ═══ TOUR OVERLAY ═══ */
+#tour-overlay{position:fixed;inset:0;z-index:9000;pointer-events:none;opacity:0;transition:opacity 0.3s}
+#tour-overlay.active{opacity:1;pointer-events:all}
+#tour-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.72)}
+#tour-card{position:absolute;background:var(--surface);border:1px solid var(--border-hi);border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.6);padding:20px 22px 16px;max-width:320px;min-width:260px;z-index:9001}
+#tour-card::before{content:'';position:absolute;width:0;height:0;border:8px solid transparent}
+#tour-card.arrow-up::before{top:-16px;left:50%;transform:translateX(-50%);border-bottom-color:var(--border-hi)}
+#tour-card.arrow-down::before{bottom:-16px;left:50%;transform:translateX(-50%);border-top-color:var(--border-hi)}
+#tour-card.arrow-left::before{left:-16px;top:50%;transform:translateY(-50%);border-right-color:var(--border-hi)}
+.tour-step-tag{font-family:var(--mono);font-size:10px;color:var(--amber);letter-spacing:.08em;margin-bottom:6px}
+.tour-title{font-family:var(--display);font-size:20px;color:var(--text);letter-spacing:.04em;margin-bottom:8px}
+.tour-body{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:14px}
+.tour-body strong{color:var(--text)}
+.tour-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tour-next{background:var(--amber);color:#0D0A06;border:none;border-radius:6px;padding:7px 16px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;flex:1}
+.tour-next:hover{filter:brightness(1.1)}
+.tour-skip{background:none;border:1px solid var(--border);color:var(--text3);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer}
+.tour-skip:hover{color:var(--text2);border-color:var(--border2)}
+.tour-dots{display:flex;gap:5px;margin-left:auto}
+.tour-dot{width:6px;height:6px;border-radius:50%;background:var(--border2);transition:background .2s}
+.tour-dot.on{background:var(--amber)}
+#tour-highlight{position:absolute;border-radius:8px;box-shadow:0 0 0 4000px rgba(0,0,0,.72),0 0 0 3px var(--amber);transition:all .35s cubic-bezier(.4,0,.2,1);z-index:9000;pointer-events:none}
+#tour-highlight.hidden{opacity:0}
+
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div><div class="logo">PedalAI</div><div class="logo-sub">// guitar pedal emulator</div></div>
+  <div class="hdr-mid">
+    <div class="font-resizer">
+      <button class="font-btn" onclick="adjustFont(-1)" aria-label="Decrease font size">A−</button>
+      <span class="font-size-lbl" id="font-size-lbl">15px</span>
+      <button class="font-btn" onclick="adjustFont(1)" aria-label="Increase font size">A+</button>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()" id="theme-toggle-btn" aria-label="Toggle day/night mode" title="Switch between Day (high-visibility) and Night (studio dark) mode">
+      <span id="theme-icon">☀</span>
+      <div class="sw" id="theme-sw"></div>
+      <span id="theme-lbl">Day</span>
+    </button>
+    <button class="help-btn" onclick="startTour()" aria-label="App walkthrough" title="How to use PedalAI">?</button>
+  </div>
+  <div class="hdr-right">
+    <div class="created-by">Created by</div>
+    <div class="author-name">PREM CHANDRAN</div>
+    <div class="author-studio">Mixed Signal Game Studios</div>
+    <a class="author-email" href="mailto:premchandran.pc@gmail.com">premchandran.pc@gmail.com</a>
+  </div>
+</header>
+
+<div class="app-body">
+
+<!-- ════ LEFT SIDEBAR ════ -->
+<aside class="sidebar">
+
+  <!-- Mode tabs -->
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="tab-pedals" onclick="switchMode('pedals')">🎸 Pedals</button>
+    <button class="mode-tab" id="tab-ear" onclick="switchMode('ear')">👂 Ear Training</button>
+  </div>
+
+  <!-- PEDALS PANEL (default) -->
+  <div id="pedals-sidebar">
+
+  <!-- API Key -->
+  <div class="acc-wrap">
+    <div class="acc-hdr" id="api-hdr" onclick="toggleApiPanel()" tabindex="0" role="button" aria-expanded="true">
+      <div class="acc-title">
+        <div class="s-dot" id="api-dot"></div>
+        API Key <span class="s-lbl" id="api-slbl">not set</span>
+      </div>
+      <div class="chev open" id="api-chev">&#9660;</div>
+    </div>
+    <div class="acc-body open" id="api-body">
+      <div class="howto">
+        <div class="howto-title">🔑 How to get your free API key</div>
+        <ol>
+          <li><div class="sn">1</div><div>Go to <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer">console.anthropic.com</a> — sign up free, no credit card needed to start.</div></li>
+          <li><div class="sn">2</div><div>In the left sidebar click <strong>API Keys</strong> → <strong>+ Create Key</strong>. Give it any name (e.g. <code>PedalAI</code>).</div></li>
+          <li><div class="sn">3</div><div>Copy the key shown — it starts with <code>sk-ant-</code>. <strong>Save it somewhere safe</strong> — Anthropic won't show it again.</div></li>
+          <li><div class="sn">4</div><div>Paste it in the box below and hit <strong>Save</strong>. It's saved only in <em>your</em> browser — never sent to any server.</div></li>
+          <li><div class="sn">5</div><div>Add a small credit ($5 is plenty for hundreds of pedal lookups) at <a href="https://console.anthropic.com/settings/billing" target="_blank" rel="noopener noreferrer">console.anthropic.com → Billing</a>.</div></li>
+        </ol>
+        <div style="margin-top:10px;padding:8px 10px;background:rgba(232,160,32,.08);border-radius:6px;border:1px solid var(--amber-dim);font-size:11px;color:var(--text2);line-height:1.6">
+          💡 <strong>Cost:</strong> Each custom pedal lookup costs &lt;$0.01. Prebuilt pedals and all audio features are <strong>completely free</strong> — no key required.<br>
+          🔒 <strong>Privacy:</strong> Your key is stored in your browser's localStorage only. It never leaves your device except to call Anthropic's API directly.
+        </div>
+      </div>
+      <span class="fld-lbl">Your Anthropic API key</span>
+      <div class="fl">
+        <input class="ti" id="api-input" type="password" placeholder="sk-ant-api03-…" autocomplete="off" spellcheck="false" oninput="onApiInput()"/>
+        <button class="btn btn-s" onclick="saveKey()">Save</button>
+        <button class="btn btn-g" onclick="clearKey()">Clear</button>
+      </div>
+      <div class="api-note">🛡 Key stays in your browser only — never stored on any server.</div>
+    </div>
+  </div>
+
+  <!-- Categories -->
+  <div class="cat-section">
+    <div class="section-title">Browse by category</div>
+    <div class="cat-pills" id="cat-pills"></div>
+  </div>
+
+  <!-- Pedal Grid -->
+  <div class="pedal-grid-section">
+    <div class="section-title" id="grid-title">Select a category above</div>
+    <div class="pedal-grid" id="pedal-grid"></div>
+  </div>
+
+  <!-- Custom Search -->
+  <div class="search-section">
+    <span class="fld-lbl">Or search any pedal</span>
+    <div class="fl">
+      <input class="ti" id="pedal-input" placeholder="e.g. Boss DS-1, EHX Big Muff…" autocomplete="off" spellcheck="false"/>
+      <button class="btn btn-p" id="load-btn" onclick="loadPedal()">Load</button>
+    </div>
+    <div class="search-hint">Enter any brand + model to emulate it</div>
+    <div class="err-line" id="err-line" role="alert"></div>
+  </div>
+
+  </div><!-- /pedals-sidebar -->
+
+  <!-- EAR TRAINING SIDEBAR -->
+  <div id="ear-sidebar" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+    <div class="et-sidebar">
+
+      <div class="et-section">
+        <div class="et-section-title">Game mode</div>
+        <div class="et-mode-btns">
+          <button class="et-mode-btn active" data-etmode="identify" onclick="selectEtMode('identify',this)">
+            <div class="et-mode-name">🎯 Identify the Effect</div>
+            <div class="et-mode-desc">Hear a tone — guess which effect type was applied</div>
+          </button>
+          <button class="et-mode-btn" data-etmode="knob" onclick="selectEtMode('knob',this)">
+            <div class="et-mode-name">🎛 Spot the Knob</div>
+            <div class="et-mode-desc">Same pedal, one setting changed — hear the difference</div>
+          </button>
+          <button class="et-mode-btn" data-etmode="stack" onclick="selectEtMode('stack',this)">
+            <div class="et-mode-name">🔗 Effect Stacking</div>
+            <div class="et-mode-desc">Two effects in a chain — identify both</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="et-section">
+        <div class="et-section-title">Difficulty</div>
+        <div class="diff-pills">
+          <button class="diff-pill active" data-diff="beginner" onclick="selectDiff('beginner',this)">Beginner</button>
+          <button class="diff-pill" data-diff="intermediate" onclick="selectDiff('intermediate',this)">Intermediate</button>
+          <button class="diff-pill" data-diff="advanced" onclick="selectDiff('advanced',this)">Advanced</button>
+        </div>
+      </div>
+
+      <div class="et-section">
+        <div class="et-section-title">Score</div>
+        <div class="et-score-display">
+          <div>
+            <div class="et-score-val" id="et-score">0</div>
+            <div class="et-score-lbl">correct</div>
+          </div>
+          <div class="et-score-streak">
+            <div class="et-score-streak-val" id="et-streak">×0</div>
+            <div class="et-score-lbl">streak</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="et-start-btn" id="et-start-btn" onclick="startEarTraining()">Start Round</button>
+
+    </div>
+  </div><!-- /ear-sidebar -->
+
+</aside>
+
+<!-- ════ RIGHT BOARD PANEL ════ -->
+<div class="board-panel velcro">
+  <div class="board-stage">
+
+    <!-- EMPTY STATE -->
+    <div class="empty-state" id="empty-state">
+      <svg class="empty-icon" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="6" y="12" width="44" height="32" rx="7" stroke="currentColor" stroke-width="2"/>
+        <circle cx="20" cy="28" r="7" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="36" cy="28" r="7" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="20" cy="28" r="2.5" fill="currentColor"/>
+        <circle cx="36" cy="28" r="2.5" fill="currentColor"/>
+        <line x1="6" y1="20" x2="0" y2="20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="50" y1="20" x2="56" y2="20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <p>Pick a pedal from the left to load it</p>
+      <div class="hint-chips" id="hint-chips"></div>
+    </div>
+
+    <!-- LOADED PEDAL -->
+    <div class="pedal-loaded" id="pedal-loaded">
+
+      <!-- top row: SVG pedal card + identity info -->
+      <div class="pedal-top-row">
+
+        <!-- SVG Pedal Illustration -->
+        <div class="board-card" id="board-card">
+          <div id="pedal-svg-wrap"></div>
+          <button class="zoom-btn" onclick="openZoom()" title="Expand pedal view">⤢</button>
+        </div>
+
+        <!-- Identity + desc + led -->
+        <div class="pedal-info">
+          <div class="pedal-identity">
+            <div class="pedal-brand-lbl" id="p-brand">—</div>
+            <div class="pedal-model-lbl" id="p-model">—</div>
+            <div class="effect-badge" id="p-badge">—</div>
+          </div>
+          <div class="pedal-led-row">
+            <div class="pled" id="pled"></div>
+            <div class="pled-lbl">power</div>
+          </div>
+          <div class="pedal-desc" id="p-desc"></div>
+        </div>
+
+      </div>
+
+      <!-- Waveform scope -->
+      <div class="scope-wrap">
+        <div class="scope-lbl">Output signal</div>
+        <canvas id="waveform"></canvas>
+      </div>
+
+      <!-- Input Signal Selector -->
+      <div class="input-sel-row">
+        <span class="input-sel-lbl">INPUT</span>
+        <button class="input-pill active" data-sig="chord" onclick="setInputSignal('chord',this)">Open Chord</button>
+        <button class="input-pill" data-sig="single" onclick="setInputSignal('single',this)">Single Note</button>
+        <button class="input-pill" data-sig="palm" onclick="setInputSignal('palm',this)">Palm Mute</button>
+        <button class="input-pill" data-sig="riff" onclick="setInputSignal('riff',this)">Riff</button>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls-row">
+        <button class="stomp-btn" id="play-btn" onclick="togglePlay()">
+          <div class="dot"></div><span id="play-lbl">Play</span>
+        </button>
+        <button class="stomp-btn bypass-btn" id="bypass-btn" onclick="toggleBypass()">Bypass: off</button>
+        <button class="stomp-btn add-chain-btn" id="add-chain-btn" onclick="addCurrentToChain()" title="Stack this pedal in the chain" style="display:none">+ Add to Chain</button>
+      </div>
+
+      <!-- Pedal Chain Board -->
+      <div class="chain-header">
+        <span class="chain-title">PEDAL CHAIN</span>
+        <button class="chain-clear-btn" onclick="clearChain()">Clear all</button>
+      </div>
+      <div class="chain-board" id="chain-board">
+        <!-- populated by JS -->
+      </div>
+
+    </div><!-- /pedal-loaded -->
+  </div><!-- /board-stage -->
+
+  <!-- EAR TRAINING MAIN PANEL -->
+  <div class="et-panel" id="et-panel">
+
+    <!-- idle / intro state -->
+    <div class="et-idle" id="et-idle">
+      <div class="et-idle-icon">👂</div>
+      <div class="et-idle-title">Ear Training</div>
+      <div class="et-idle-sub">Train yourself to recognise guitar effects by ear — distortion's harmonic crunch, chorus's shimmer, delay's repeating echo, and more. Pick a mode and click <strong>Start Round</strong>.</div>
+    </div>
+
+    <!-- active round -->
+    <div class="et-round" id="et-round">
+      <div class="et-q-header">
+        <div class="et-q-num" id="et-qnum">Question 1 of 5</div>
+        <div class="et-q-progress" id="et-progress"></div>
+      </div>
+
+      <div class="et-q-prompt" id="et-prompt">Loading…</div>
+
+      <div class="et-listen-row">
+        <button class="et-listen-btn" id="et-listen-btn" onclick="etPlaySound()">
+          <span id="et-listen-icon">▶</span>&nbsp;&nbsp;Listen
+        </button>
+        <div class="et-listen-hint" id="et-listen-hint">Press to hear the effect</div>
+      </div>
+
+      <div class="et-wave-bar"><canvas id="et-wave-canvas"></canvas></div>
+
+      <div class="et-choices" id="et-choices"></div>
+
+      <div class="et-feedback" id="et-feedback">
+        <div class="et-fb-title" id="et-fb-title"></div>
+        <div class="et-fb-text" id="et-fb-text"></div>
+      </div>
+
+      <button class="et-next-btn" id="et-next-btn" onclick="etNextQuestion()">Next →</button>
+    </div>
+
+    <!-- result screen -->
+    <div class="et-result" id="et-result">
+      <div class="et-result-score" id="et-result-score">0</div>
+      <div class="et-result-of" id="et-result-of">out of 5</div>
+      <div class="et-result-msg" id="et-result-msg"></div>
+      <button class="et-result-replay" onclick="startEarTraining()">Play Again</button>
+    </div>
+
+  </div><!-- /et-panel -->
+
+</div><!-- /board-panel -->
+
+</div><!-- /app-body -->
+
+<footer>
+  <div>Built by <strong>PREM CHANDRAN</strong> &nbsp;·&nbsp; Mixed Signal Game Studios &nbsp;·&nbsp; Powered by Claude AI + Web Audio API</div>
+  <div><a href="mailto:premchandran.pc@gmail.com">premchandran.pc@gmail.com</a></div>
+</footer>
+
+<!-- TOUR OVERLAY (must be before <script> so elements exist when JS runs) -->
+<div id="tour-overlay">
+  <div id="tour-backdrop" onclick="endTour()"></div>
+  <div id="tour-highlight" class="hidden"></div>
+  <div id="tour-card">
+    <div class="tour-step-tag" id="tour-step-tag">STEP 1 OF 8</div>
+    <div class="tour-title" id="tour-title">Welcome to PedalAI</div>
+    <div class="tour-body" id="tour-body">Let's take a quick tour of the app.</div>
+    <div class="tour-actions">
+      <button class="tour-next" id="tour-next-btn" onclick="tourNext()">Next →</button>
+      <button class="tour-skip" onclick="endTour()">Skip tour</button>
+      <div class="tour-dots" id="tour-dots"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ZOOM OVERLAY -->
+<div id="zoom-overlay" onclick="if(event.target===this)closeZoom()">
+  <div id="zoom-modal">
+    <button id="zoom-close" onclick="closeZoom()" aria-label="Close zoom">✕</button>
+    <div id="zoom-content"></div>
+  </div>
+</div>
+
+<script>
+/* Global error catcher — logs detailed info to console */
+window.addEventListener('error', function(e){
+  console.error('[PedalAI] Uncaught error at', e.filename, 'line', e.lineno, ':', e.message, e.error);
+});
+
+/* ═══════════════════════════════════
+   CATALOGUE — prebuilt pedal options
+═══════════════════════════════════ */
+const CATEGORIES = [
+  { id:'dist',  label:'Distortion',  icon:'⚡' },
+  { id:'over',  label:'Overdrive',   icon:'🔥' },
+  { id:'fuzz',  label:'Fuzz',        icon:'☁' },
+  { id:'mod',   label:'Modulation',  icon:'〜' },
+  { id:'delay', label:'Delay',       icon:'⏱' },
+  { id:'reverb',label:'Reverb',      icon:'🌊' },
+  { id:'dyn',   label:'Dynamics',    icon:'📊' },
+  { id:'filter',label:'Filter / EQ', icon:'🎚' },
+];
+
+const PEDALS = {
+  dist:[
+    {brand:'Boss',   name:'DS-1',             type:'distortion', color:'#F5A623', bodyColor:'#E8901A'},
+    {brand:'ProCo',  name:'RAT2',             type:'distortion', color:'#1A1A1A', bodyColor:'#2A2A2A'},
+    {brand:'MXR',    name:'Distortion+',      type:'distortion', color:'#F7931E', bodyColor:'#E08020'},
+    {brand:'Boss',   name:'MT-2 Metal Zone',  type:'distortion', color:'#1A1A2E', bodyColor:'#0D0D20'},
+    {brand:'Wampler',name:'Pinnacle',         type:'distortion', color:'#8B1A1A', bodyColor:'#6B0A0A'},
+    {brand:'Suhr',   name:'Riot',             type:'distortion', color:'#2C3E50', bodyColor:'#1A2530'},
+  ],
+  over:[
+    {brand:'Ibanez', name:'TS9 Tube Screamer',type:'overdrive',  color:'#4A7C59', bodyColor:'#3A6248'},
+    {brand:'Boss',   name:'BD-2 Blues Driver', type:'overdrive', color:'#4A90D9', bodyColor:'#3A80C9'},
+    {brand:'Fulltone',name:'OCD',             type:'overdrive',  color:'#C8A84B', bodyColor:'#B8983B'},
+    {brand:'Klon',   name:'Centaur',          type:'overdrive',  color:'#C8B860', bodyColor:'#B8A850'},
+    {brand:'JHS',    name:'Morning Glory',    type:'overdrive',  color:'#5D8A8A', bodyColor:'#4D7A7A'},
+    {brand:'Xotic',  name:'BB Preamp',        type:'overdrive',  color:'#8B4513', bodyColor:'#7B3503'},
+  ],
+  fuzz:[
+    {brand:'Electro-Harmonix',name:'Big Muff Pi',  type:'fuzz', color:'#7B68EE', bodyColor:'#6B58DE'},
+    {brand:'Dunlop',name:'Fuzz Face',              type:'fuzz', color:'#C0392B', bodyColor:'#A02020'},
+    {brand:'Boss',  name:'FZ-5',                   type:'fuzz', color:'#2ECC71', bodyColor:'#1EBC61'},
+    {brand:'Zvex', name:'Fuzz Factory',            type:'fuzz', color:'#FF6B35', bodyColor:'#EF5B25'},
+    {brand:'Electro-Harmonix',name:'Russian Big Muff',type:'fuzz',color:'#2C7873',bodyColor:'#1C6863'},
+    {brand:'Way Huge',name:'Swollen Pickle',       type:'fuzz', color:'#556B2F', bodyColor:'#455B1F'},
+  ],
+  mod:[
+    {brand:'MXR',     name:'Phase 90',          type:'phaser',   color:'#F7931E', bodyColor:'#E08020'},
+    {brand:'Electro-Harmonix',name:'Small Clone',type:'chorus',  color:'#1565C0', bodyColor:'#0D55B0'},
+    {brand:'Boss',    name:'CE-2W Chorus',      type:'chorus',   color:'#1A3A6A', bodyColor:'#0A2A5A'},
+    {brand:'MXR',     name:'Carbon Copy',       type:'delay',    color:'#2E7D32', bodyColor:'#1E6D22'},
+    {brand:'Boss',    name:'BF-3 Flanger',      type:'flanger',  color:'#00838F', bodyColor:'#00737F'},
+    {brand:'TC Electronic',name:'Flashback',    type:'delay',    color:'#880E4F', bodyColor:'#780040'},
+    {brand:'Strymon', name:'Mobius',            type:'chorus',   color:'#1A237E', bodyColor:'#0A1768'},
+    {brand:'EarthQuaker',name:'Sea Machine',    type:'chorus',   color:'#4A148C', bodyColor:'#3A0A7C'},
+  ],
+  delay:[
+    {brand:'Boss',    name:'DD-8',              type:'delay',    color:'#1565C0', bodyColor:'#0D55B0'},
+    {brand:'MXR',    name:'Carbon Copy Bright', type:'delay',    color:'#33691E', bodyColor:'#236010'},
+    {brand:'Strymon', name:'Timeline',          type:'delay',    color:'#004D40', bodyColor:'#003D30'},
+    {brand:'Eventide',name:'TimeFactor',        type:'delay',    color:'#212121', bodyColor:'#111111'},
+    {brand:'TC Electronic',name:'Flashback 2',  type:'delay',    color:'#B71C1C', bodyColor:'#A70C0C'},
+    {brand:'Walrus Audio',name:'Mira',          type:'delay',    color:'#4E342E', bodyColor:'#3E241E'},
+  ],
+  reverb:[
+    {brand:'Strymon', name:'BigSky',            type:'reverb',   color:'#1A237E', bodyColor:'#0A1768'},
+    {brand:'Boss',    name:'RV-6',              type:'reverb',   color:'#37474F', bodyColor:'#27373F'},
+    {brand:'Eventide',name:'Space',             type:'reverb',   color:'#1B5E20', bodyColor:'#0B4E10'},
+    {brand:'TC Electronic',name:'Hall of Fame 2',type:'reverb',  color:'#880E4F', bodyColor:'#780040'},
+    {brand:'Walrus Audio',name:'Fathom',        type:'reverb',   color:'#0D47A1', bodyColor:'#0A3780'},
+    {brand:'EarthQuaker',name:'Afterneath',     type:'reverb',   color:'#3E2723', bodyColor:'#2E1713'},
+  ],
+  dyn:[
+    {brand:'Boss',    name:'CS-3 Compressor',   type:'compressor',color:'#558B2F',bodyColor:'#456B1F'},
+    {brand:'MXR',     name:'Dyna Comp',         type:'compressor',color:'#E53935',bodyColor:'#D52925'},
+    {brand:'Empress', name:'Compressor',        type:'compressor',color:'#4A148C',bodyColor:'#3A0A7C'},
+    {brand:'Keeley', name:'Compressor Plus',    type:'compressor',color:'#F57F17',bodyColor:'#E56F07'},
+    {brand:'Boss',    name:'LMB-3 Limiter',     type:'compressor',color:'#00695C',bodyColor:'#00594C'},
+    {brand:'Wampler', name:'Ego Compressor',    type:'compressor',color:'#37474F',bodyColor:'#27373F'},
+  ],
+  filter:[
+    {brand:'Dunlop',  name:'Cry Baby Wah',      type:'wah',      color:'#B71C1C', bodyColor:'#A70C0C'},
+    {brand:'Electro-Harmonix',name:'Micro Q-Tron',type:'envelope',color:'#1B5E20',bodyColor:'#0B4E10'},
+    {brand:'Boss',    name:'GE-7 EQ',           type:'eq',       color:'#006064', bodyColor:'#005054'},
+    {brand:'MXR',     name:'10-Band EQ',        type:'eq',       color:'#1A237E', bodyColor:'#0A1768'},
+    {brand:'EarthQuaker',name:'Spatial Delivery',type:'wah',     color:'#4A148C', bodyColor:'#3A0A7C'},
+    {brand:'Source Audio',name:'Manta Filter',  type:'filter',   color:'#BF360C', bodyColor:'#AF260C'},
+  ],
+};
+
+/* quick-access hint chips on empty state */
+const HINTS = ['Boss DS-1','EHX Big Muff','MXR Phase 90','Strymon BigSky','Ibanez TS9','MXR Carbon Copy'];
+
+/* ═══════════════════════════════════
+   THEME
+═══════════════════════════════════ */
+let currentTheme = 'dark';
+function applyTheme(t){
+  currentTheme = t;
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('theme-icon').textContent = t==='light'?'☽':'☀';
+  document.getElementById('theme-lbl').textContent  = t==='light'?'Night':'Day';
+  try{localStorage.setItem('pedalai_theme',t)}catch(e){}
+}
+function toggleTheme(){ applyTheme(currentTheme==='dark'?'light':'dark'); }
+function initTheme(){ let s='dark'; try{s=localStorage.getItem('pedalai_theme')||'dark'}catch(e){} applyTheme(s); }
+
+/* ═══════════════════════════════════
+   API KEY
+═══════════════════════════════════ */
+let apiKey = '';
+function loadSavedKey(){
+  try{const k=localStorage.getItem('pedalai_apikey')||'';if(k){apiKey=k;document.getElementById('api-input').value=k;setApiStatus('ok');collapseApi();}}catch(e){}
+}
+function saveKey(){
+  const v=(document.getElementById('api-input').value||'').trim();
+  if(!v){clearKey();return;}
+  apiKey=v; try{localStorage.setItem('pedalai_apikey',v)}catch(e){} setApiStatus('ok'); collapseApi();
+}
+function clearKey(){
+  apiKey=''; document.getElementById('api-input').value='';
+  document.getElementById('api-input').className='ti';
+  try{localStorage.removeItem('pedalai_apikey')}catch(e){} setApiStatus('none');
+}
+function onApiInput(){
+  const v=(document.getElementById('api-input').value||'').trim();
+  const inp=document.getElementById('api-input');
+  if(!v){inp.className='ti';setApiStatus('none');return;}
+  if(v.startsWith('sk-ant-')){inp.className='ti ok';setApiStatus('pending');}
+  else{inp.className='ti err';setApiStatus('err');}
+}
+function setApiStatus(s){
+  const dot=document.getElementById('api-dot'),lbl=document.getElementById('api-slbl');
+  dot.className='s-dot';lbl.className='s-lbl';
+  if(s==='ok'){dot.classList.add('ok');lbl.classList.add('ok');lbl.textContent='key saved';}
+  else if(s==='pending'){dot.classList.add('ok');lbl.textContent='looks good — press Save';}
+  else if(s==='err'){dot.classList.add('err');lbl.classList.add('err');lbl.textContent='invalid format';}
+  else{lbl.textContent='not set';}
+}
+function toggleApiPanel(){
+  const b=document.getElementById('api-body'),c=document.getElementById('api-chev'),h=document.getElementById('api-hdr');
+  const open=b.classList.contains('open');
+  b.classList.toggle('open',!open);c.classList.toggle('open',!open);h.setAttribute('aria-expanded',String(!open));
+}
+function collapseApi(){
+  document.getElementById('api-body').classList.remove('open');
+  document.getElementById('api-chev').classList.remove('open');
+  document.getElementById('api-hdr').setAttribute('aria-expanded','false');
+}
+
+/* ═══════════════════════════════════
+   CATEGORY & GRID UI
+═══════════════════════════════════ */
+let activeCat = null;
+
+function buildCatUI(){
+  const pills = document.getElementById('cat-pills');
+  CATEGORIES.forEach(cat=>{
+    const btn = document.createElement('button');
+    btn.className = 'cat-pill';
+    btn.textContent = cat.icon+' '+cat.label;
+    btn.dataset.id = cat.id;
+    btn.onclick = ()=>selectCategory(cat.id, btn);
+    pills.appendChild(btn);
+  });
+
+  const chips = document.getElementById('hint-chips');
+  HINTS.forEach(h=>{
+    const c = document.createElement('button');
+    c.className='hint-chip'; c.textContent=h;
+    c.onclick=()=>{ document.getElementById('pedal-input').value=h; loadPedal(); };
+    chips.appendChild(c);
+  });
+}
+
+function selectCategory(id, btn){
+  document.querySelectorAll('.cat-pill').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  activeCat = id;
+  const cat = CATEGORIES.find(c=>c.id===id);
+  document.getElementById('grid-title').textContent = cat.icon+' '+cat.label+' pedals';
+  buildPedalGrid(PEDALS[id]||[]);
+}
+
+function buildPedalGrid(list){
+  const grid = document.getElementById('pedal-grid');
+  grid.innerHTML='';
+  list.forEach(p=>{
+    const card = document.createElement('div');
+    card.className='pedal-card';
+    card.innerHTML=`<div class="pc-brand">${p.brand}</div><div class="pc-name">${p.name}</div><div class="pc-type">${p.type}</div>`;
+    card.onclick=()=>{
+      document.querySelectorAll('.pedal-card').forEach(c=>c.classList.remove('active'));
+      card.classList.add('active');
+      document.getElementById('pedal-input').value=p.brand+' '+p.name;
+      loadPedalDirect(p);
+    };
+    grid.appendChild(card);
+  });
+}
+
+/* ═══════════════════════════════════
+   LOAD PEDAL — from grid (with local color/type hints)
+═══════════════════════════════════ */
+async function loadPedalDirect(hint){
+  document.getElementById('pedal-input').value = hint.brand+' '+hint.name;
+  // pass color hint to AI so it knows the pedal's real appearance
+  await loadPedalCore(hint.brand+' '+hint.name, hint);
+}
+async function loadPedal(){
+  const raw=(document.getElementById('pedal-input').value||'').trim();
+  if(!raw){showErr('Enter a pedal brand and model first.');return;}
+  await loadPedalCore(raw, null);
+}
+
+async function loadPedalCore(raw, hint){
+  const errLine=document.getElementById('err-line');
+  if(errLine) errLine.style.display='none';
+  if(!apiKey){showErr('Add your API key first.');collapseApi();const b=document.getElementById('api-body');if(!b.classList.contains('open'))toggleApiPanel();return;}
+  const btn=document.getElementById('load-btn');
+  btn.disabled=true; btn.textContent='Loading…';
+  setLed('seek'); stopAudio();
+
+  // color hint from catalogue if available
+  const colorHint = hint ? `The pedal enclosure color is approximately "${hint.color}".` : '';
+
+  const prompt=`You are a guitar pedal expert. Return JSON only — no markdown, no backticks:
+{
+  "brand":"Boss","model":"DS-1","type":"distortion",
+  "description":"Two sentences about how this pedal sounds.",
+  "color":"#F5A623",
+  "bodyColor":"#D48A10",
+  "textColor":"#FFFFFF",
+  "shape":"tall",
+  "knobs":["gain","tone","level"],
+  "params":{"gain":72,"tone":40,"level":65,"distortion_character":"hard_clip","freq_emphasis":"mid","warmth":0.4,"brightness":0.6,"wetDry":0.85}
+}
+
+Pedal: "${raw.replace(/"/g,'')}"
+${colorHint}
+
+Rules:
+- type: distortion|overdrive|fuzz|reverb|delay|chorus|phaser|flanger|tremolo|compressor|boost|eq|wah|envelope
+- shape: "tall" (Boss-style upright rectangle ~80×110mm) | "wide" (wide low enclosure ~120×60mm) | "round" (circular Fuzz Face ~110mm dia) | "large" (Strymon multi-knob ~180×120mm)
+- color: real hex color of the pedal enclosure
+- bodyColor: slightly darker hex for side/shadow
+- textColor: "#FFFFFF" or "#000000" — whichever is readable on the enclosure
+- knobs: only real physical knobs 2-4
+- param values 0-100 except time(ms 50-900), warmth/brightness/wetDry(0-1)
+- distortion_character/freq_emphasis only for distortion/overdrive/fuzz`;
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:700,messages:[{role:'user',content:prompt}]})
+    });
+    if(res.status===401){showErr('Invalid API key.');setApiStatus('err');setLed('off');btn.disabled=false;btn.textContent='Load';return;}
+    if(res.status===429){showErr('Rate limit — wait a moment.');setLed('off');btn.disabled=false;btn.textContent='Load';return;}
+    if(!res.ok){showErr(`API error ${res.status}.`);setLed('off');btn.disabled=false;btn.textContent='Load';return;}
+    const data=await res.json();
+    const txt=(data.content||[]).map(b=>b.text||'').join('');
+    const clean=txt.replace(/```[\w]*/g,'').replace(/```/g,'').trim();
+    const s=clean.indexOf('{'),e=clean.lastIndexOf('}');
+    if(s===-1||e===-1)throw new Error('No JSON');
+    const pedal=JSON.parse(clean.slice(s,e+1));
+    if(!pedal.type||!Array.isArray(pedal.knobs)||!pedal.knobs.length)throw new Error('Bad structure');
+
+    pedalData=pedal; knobVals={};
+    pedal.knobs.forEach(k=>{
+      const m=KNOB_META[k]||{min:0,max:100};
+      const v=pedal.params?pedal.params[k]:undefined;
+      knobVals[k]=(v!==undefined&&!isNaN(v))?Math.min(Math.max(Number(v),m.min),m.max):(m.min+m.max)/2;
+    });
+
+    renderPedal(pedal);
+    setLed('on');
+    // Show the "Add to Chain" button now that a pedal is loaded
+    const ab = document.getElementById('add-chain-btn');
+    if(ab) ab.style.display = '';
+  }catch(e){
+    showErr('Could not parse pedal data — check spelling or try another.');setLed('off');
+  }
+  btn.disabled=false; btn.textContent='Load';
+}
+
+function showErr(msg){const el=document.getElementById('err-line');if(el){el.textContent='⚠ '+msg;el.style.display='block';}}
+
+/* ═══════════════════════════════════
+   RENDER PEDAL
+═══════════════════════════════════ */
+function renderPedal(p){
+  document.getElementById('empty-state').style.display='none';
+  const loaded=document.getElementById('pedal-loaded');
+  loaded.style.display='flex';
+
+  document.getElementById('p-brand').textContent=p.brand||'';
+  document.getElementById('p-model').textContent=p.model||'';
+  document.getElementById('p-badge').textContent=p.type||'—';
+  document.getElementById('p-desc').textContent=p.description||'';
+  document.getElementById('sc-effect').textContent=p.type||'—';
+
+  renderPedalSVG(p);
+  resizeCanvas();
+}
+
+/* ═══════════════════════════════════
+   SVG PEDAL ILLUSTRATION with interactive knobs
+═══════════════════════════════════ */
+function renderPedalSVG(p){
+  const wrap = document.getElementById('pedal-svg-wrap');
+  const color     = p.color     || '#444444';
+  const bodyColor = p.bodyColor || '#333333';
+  const textColor = p.textColor || '#FFFFFF';
+  const shape     = p.shape     || 'tall';
+  const knobNames = p.knobs     || [];
+
+  // Intrinsic (design) dimensions — we always render at these and CSS scales
+  let IW, IH;
+  if(shape==='wide')       { IW=220; IH=120; }
+  else if(shape==='large') { IW=260; IH=175; }
+  else                     { IW=160; IH=215; }  // tall & round
+
+  const isRound = shape==='round';
+  const rx      = isRound ? Math.min(IW,IH)/2 : 14;
+
+  // Knob geometry — R_BODY is the knob disc, ARC_OFFSET is gap, R_ARC is arc track radius
+  const R_BODY   = shape==='large' ? 24 : shape==='wide' ? 20 : 22;
+  const ARC_GAP  = 5;                    // gap between knob edge and arc track
+  const R_ARC    = R_BODY + ARC_GAP;    // arc track radius — always outside the disc
+
+  const nk       = knobNames.length;
+  const knobSpX  = IW / (nk + 1);
+  const maxR_ARC = (knobSpX / 2) - 2;  // hard ceiling to prevent overlap
+  const R_ARC_SAFE = Math.min(R_ARC, maxR_ARC);
+  const knobY    = shape==='wide'  ? IH*0.50 :
+                   shape==='large' ? IH*0.42 : IH*0.42;
+  const knobPositions = knobNames.map((_,i)=>({ x: knobSpX*(i+1), y: knobY }));
+
+  const screwPad = 12, screwR = 5.5;
+  const screws   = [{x:screwPad,y:screwPad},{x:IW-screwPad,y:screwPad},{x:screwPad,y:IH-screwPad},{x:IW-screwPad,y:IH-screwPad}];
+
+  const ledX     = IW/2;
+  const ledY     = shape==='wide' ? IH*0.20 : IH*0.16;
+  const switchY  = shape==='wide' ? IH*0.78 : shape==='large' ? IH*0.82 : IH*0.84;
+  const switchR  = shape==='wide' ? 13       : 17;
+
+  // Unique gradient IDs per render (avoids cross-pedal gradient bleed)
+  const ts  = Date.now();
+  const GID = 'pg'+ts, KID = 'kb'+ts, SID = 'sc'+ts, DSH = 'ds'+ts;
+
+  // ── Single knob draw function used for both initial render and drag updates ──
+  function drawKnob(name, pct, cx, cy, r_body, r_arc){
+    const toRad = d => d * Math.PI/180;
+    // arc: strictly outside the knob disc
+    const ax1 = cx + r_arc*Math.cos(toRad(-225)), ay1 = cy + r_arc*Math.sin(toRad(-225));
+    const ax2 = cx + r_arc*Math.cos(toRad(-45)),  ay2 = cy + r_arc*Math.sin(toRad(-45));
+    const endDeg = -225 + pct*270;
+    const vx2 = cx + r_arc*Math.cos(toRad(endDeg)), vy2 = cy + r_arc*Math.sin(toRad(endDeg));
+    const large = pct > 0.5 ? 1 : 0;
+
+    const trackPath = `M${fx(ax1)},${fx(ay1)} A${r_arc},${r_arc} 0 1,1 ${fx(ax2)},${fx(ay2)}`;
+    const valPath   = pct > 0.005
+      ? `M${fx(ax1)},${fx(ay1)} A${r_arc},${r_arc} 0 ${large},1 ${fx(vx2)},${fx(vy2)}`
+      : null;
+
+    // indicator: a line from 35% to 75% of knob body radius
+    const rIn = r_body*0.35, rOut = r_body*0.75;
+    const lx1 = cx + rIn*Math.cos(toRad(endDeg)), ly1 = cy + rIn*Math.sin(toRad(endDeg));
+    const lx2 = cx + rOut*Math.cos(toRad(endDeg)), ly2 = cy + rOut*Math.sin(toRad(endDeg));
+
+    const labelFS = Math.max(7, Math.floor(r_body*0.38));
+    const labelY  = cy + r_arc + 12;
+
+    return `
+      <!-- track -->
+      <path d="${trackPath}" fill="none" stroke="rgba(0,0,0,0.55)" stroke-width="3.5" stroke-linecap="round"/>
+      ${valPath ? `<path d="${valPath}" fill="none" stroke="#E8A020" stroke-width="3.5" stroke-linecap="round"/>` : ''}
+      <!-- knob body disc -->
+      <circle cx="${cx}" cy="${cy}" r="${r_body}" fill="url(#${KID})" stroke="rgba(0,0,0,0.65)" stroke-width="1.5"/>
+      <!-- inner rim highlight -->
+      <circle cx="${cx}" cy="${cy}" r="${r_body*0.6}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+      <!-- indicator line -->
+      <line x1="${fx(lx1)}" y1="${fx(ly1)}" x2="${fx(lx2)}" y2="${fx(ly2)}"
+            stroke="${textColor}" stroke-width="2.5" stroke-linecap="round" opacity="0.92"/>
+      <!-- centre pin -->
+      <circle cx="${cx}" cy="${cy}" r="${r_body*0.18}" fill="rgba(0,0,0,0.75)" stroke="rgba(255,255,255,0.12)" stroke-width="0.5"/>
+      <!-- label -->
+      <text x="${cx}" y="${labelY}" text-anchor="middle"
+            font-family="'Share Tech Mono',monospace" font-size="${labelFS}"
+            fill="${textColor}" opacity="0.75" letter-spacing="1">${name.toUpperCase()}</text>`;
+  }
+
+  function screwSVG(sx,sy){
+    return `<circle cx="${sx}" cy="${sy}" r="${screwR}" fill="url(#${SID})" stroke="rgba(0,0,0,0.45)" stroke-width="0.5"/>
+      <line x1="${sx-3.5}" y1="${sy}" x2="${sx+3.5}" y2="${sy}" stroke="rgba(0,0,0,0.55)" stroke-width="1.2" stroke-linecap="round"/>
+      <line x1="${sx}" y1="${sy-3.5}" x2="${sx}" y2="${sy+3.5}" stroke="rgba(0,0,0,0.55)" stroke-width="1.2" stroke-linecap="round"/>`;
+  }
+
+  // Jack style (top or side depending on shape)
+  const jackIsTop = shape !== 'wide';
+  const jackY2    = jackIsTop ? 8 : IH/2;
+  const inX=14, outX=IW-14;
+
+  const brandFS = Math.max(8, Math.floor(IW*0.065));
+  const modelFS = shape==='large' ? 24 : shape==='wide' ? 14 : 20;
+
+  const svgBody = `<svg id="psvg"
+      viewBox="0 0 ${IW} ${IH}"
+      xmlns="http://www.w3.org/2000/svg"
+      style="width:100%;height:100%;display:block;overflow:visible">
+  <defs>
+    <radialGradient id="${GID}" cx="32%" cy="22%" r="72%">
+      <stop offset="0%"   stop-color="${lighten(color,35)}"/>
+      <stop offset="55%"  stop-color="${color}"/>
+      <stop offset="100%" stop-color="${bodyColor}"/>
+    </radialGradient>
+    <radialGradient id="${KID}" cx="32%" cy="28%" r="68%">
+      <stop offset="0%"   stop-color="#525048"/>
+      <stop offset="50%"  stop-color="#2A2825"/>
+      <stop offset="100%" stop-color="#0D0B09"/>
+    </radialGradient>
+    <radialGradient id="${SID}" cx="35%" cy="30%" r="65%">
+      <stop offset="0%"  stop-color="#999"/>
+      <stop offset="100%" stop-color="#444"/>
+    </radialGradient>
+    <filter id="${DSH}" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="rgba(0,0,0,0.75)"/>
+    </filter>
+  </defs>
+
+  <!-- enclosure body -->
+  <rect x="3" y="3" width="${IW-6}" height="${IH-6}" rx="${rx}"
+        fill="url(#${GID})" filter="url(#${DSH})" stroke="${bodyColor}" stroke-width="2"/>
+  <!-- inner panel recess line -->
+  <rect x="9" y="9" width="${IW-18}" height="${IH-18}" rx="${rx-4}"
+        fill="none" stroke="rgba(0,0,0,0.3)" stroke-width="1"/>
+
+  <!-- brand -->
+  <text x="${IW/2}" y="${IH*0.11}" text-anchor="middle"
+        font-family="'Share Tech Mono',monospace" font-size="${brandFS}"
+        fill="${textColor}" opacity="0.55" letter-spacing="3">${(p.brand||'').toUpperCase()}</text>
+  <!-- model -->
+  <text x="${IW/2}" y="${IH*0.22}" text-anchor="middle"
+        font-family="'Bebas Neue',Impact,sans-serif" font-size="${modelFS}"
+        fill="${textColor}" letter-spacing="1">${p.model||''}</text>
+
+  <!-- LED housing -->
+  <circle cx="${ledX}" cy="${ledY}" r="5.5" fill="#1A0800" stroke="rgba(0,0,0,0.6)" stroke-width="1"/>
+  <circle cx="${ledX}" cy="${ledY}" r="4"   fill="#FF3020" opacity="0.92" id="svg-led"/>
+
+  <!-- KNOB GROUPS — draggable -->
+  ${knobPositions.map((pos,i)=>{
+    const name = knobNames[i]||'';
+    const m    = KNOB_META[name]||{min:0,max:100};
+    const val  = knobVals[name]!==undefined ? knobVals[name] : (m.min+m.max)/2;
+    const pct  = (val-m.min)/(m.max-m.min);
+    return `<g class="knob-g"
+        data-knob="${name}"
+        data-cx="${pos.x}" data-cy="${pos.y}"
+        data-rb="${R_BODY}" data-ra="${R_ARC_SAFE}"
+        style="cursor:ns-resize">${drawKnob(name, pct, pos.x, pos.y, R_BODY, R_ARC_SAFE)}</g>`;
+  }).join('')}
+
+  <!-- stomp switch -->
+  <circle cx="${IW/2}" cy="${switchY}" r="${switchR}"     fill="#191918" stroke="#3A3A38" stroke-width="1.5"/>
+  <circle cx="${IW/2}" cy="${switchY}" r="${switchR-4.5}" fill="#101010" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+  <circle cx="${IW/2}" cy="${switchY}" r="${switchR-8}"   fill="#1E1E1C" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/>
+
+  <!-- jacks -->
+  <circle cx="${inX}"  cy="${jackY2}" r="5.5" fill="#1A1A1A" stroke="#666" stroke-width="1.2"/>
+  <circle cx="${inX}"  cy="${jackY2}" r="2.5" fill="#888" stroke="none"/>
+  <circle cx="${outX}" cy="${jackY2}" r="5.5" fill="#1A1A1A" stroke="#666" stroke-width="1.2"/>
+  <circle cx="${outX}" cy="${jackY2}" r="2.5" fill="#888" stroke="none"/>
+
+  <!-- corner screws -->
+  ${screws.map(s=>screwSVG(s.x,s.y)).join('')}
+</svg>`;
+
+  wrap.innerHTML = svgBody;
+
+  // Store drawKnob & gradient IDs on wrap for drag updates
+  wrap._drawKnob = drawKnob;
+  wrap._KID      = KID;
+  wrap._IW       = IW;
+  wrap._IH       = IH;
+  wrap._R_BODY   = R_BODY;
+  wrap._R_ARC    = R_ARC_SAFE;
+
+  // Attach drag events to all knob groups
+  wrap.querySelectorAll('.knob-g').forEach(g=>{
+    g.addEventListener('mousedown',  onSVGKnobDown);
+    g.addEventListener('touchstart', onSVGKnobTouchStart, {passive:false});
+  });
+}
+
+/* ═══════════════════════════════════
+   ZOOM / FULLSCREEN OVERLAY
+═══════════════════════════════════ */
+function openZoom(){
+  if(!pedalData)return;
+  const overlay=document.getElementById('zoom-overlay');
+  const zc=document.getElementById('zoom-content');
+  // Clone the SVG into the zoom panel
+  const orig=document.getElementById('pedal-svg-wrap');
+  zc.innerHTML='';
+  const clone=orig.cloneNode(true);
+  // Resize SVG to fill zoom box
+  const svg=clone.querySelector('svg');
+  if(svg){ svg.style.width='100%'; svg.style.height='100%'; }
+  zc.appendChild(clone);
+  // Attach drag events to cloned knob groups (they update same knobVals)
+  zc.querySelectorAll('.knob-g').forEach(g=>{
+    g.addEventListener('mousedown',  onSVGKnobDownZoom);
+    g.addEventListener('touchstart', onSVGKnobTouchStartZoom, {passive:false});
+  });
+  overlay.classList.add('open');
+}
+function closeZoom(){
+  document.getElementById('zoom-overlay').classList.remove('open');
+}
+
+let zoomDragging=null, zoomDragY=0, zoomDragV=0;
+function onSVGKnobDownZoom(e){
+  const g=e.currentTarget;
+  zoomDragging={g, name:g.dataset.knob, cx:+g.dataset.cx, cy:+g.dataset.cy, rb:+(g.dataset.rb||20), ra:+(g.dataset.ra||25)};
+  zoomDragY=e.clientY; zoomDragV=knobVals[zoomDragging.name]??50;
+  window.addEventListener('mousemove', onZoomKnobMove);
+  window.addEventListener('mouseup',   onZoomKnobUp);
+  e.preventDefault();
+}
+function onSVGKnobTouchStartZoom(e){
+  const g=e.currentTarget;
+  zoomDragging={g, name:g.dataset.knob, cx:+g.dataset.cx, cy:+g.dataset.cy, rb:+(g.dataset.rb||20), ra:+(g.dataset.ra||25)};
+  zoomDragY=e.touches[0].clientY; zoomDragV=knobVals[zoomDragging.name]??50;
+  window.addEventListener('touchmove', onZoomKnobTouchMove, {passive:false});
+  window.addEventListener('touchend',  onZoomKnobUp);
+  e.preventDefault();
+}
+function onZoomKnobMove(e){ applyZoomDrag(e.clientY); }
+function onZoomKnobTouchMove(e){ applyZoomDrag(e.touches[0].clientY); e.preventDefault(); }
+function applyZoomDrag(clientY){
+  if(!zoomDragging)return;
+  const {name} = zoomDragging;
+  const m=KNOB_META[name]||{min:0,max:100};
+  const delta=(zoomDragY-clientY)/110;
+  const newV=Math.min(m.max,Math.max(m.min,zoomDragV+delta*(m.max-m.min)));
+  knobVals[name]=newV;
+  // update both zoom and main SVG
+  const pct=(newV-m.min)/(m.max-m.min);
+  _updateKnobGroup(zoomDragging.g, name, zoomDragging.cx, zoomDragging.cy, pct, true);
+  const mainG=document.querySelector(`#pedal-svg-wrap .knob-g[data-knob="${name}"]`);
+  if(mainG) _updateKnobGroup(mainG, name, +mainG.dataset.cx, +mainG.dataset.cy, pct, false);
+  if(isPlaying){clearTimeout(svgRebuildTimer);svgRebuildTimer=setTimeout(rebuildAudio,120);}
+}
+function onZoomKnobUp(){
+  zoomDragging=null;
+  window.removeEventListener('mousemove', onZoomKnobMove);
+  window.removeEventListener('mouseup',   onZoomKnobUp);
+  window.removeEventListener('touchmove', onZoomKnobTouchMove);
+  window.removeEventListener('touchend',  onZoomKnobUp);
+}
+
+/* shared knob group updater */
+function _updateKnobGroup(g, name, cx, cy, pct, reattachZoom){
+  const wrap=document.getElementById('pedal-svg-wrap');
+  const fn=wrap._drawKnob;
+  if(!fn)return;
+  const r_body = +(g.dataset.rb || wrap._R_BODY || 20);
+  const r_arc  = +(g.dataset.ra || wrap._R_ARC  || 25);
+  g.innerHTML=fn(name, pct, cx, cy, r_body, r_arc);
+  if(reattachZoom){
+    g.addEventListener('mousedown',  onSVGKnobDownZoom);
+    g.addEventListener('touchstart', onSVGKnobTouchStartZoom, {passive:false});
+  } else {
+    g.addEventListener('mousedown',  onSVGKnobDown);
+    g.addEventListener('touchstart', onSVGKnobTouchStart, {passive:false});
+  }
+}
+
+// colour helper
+function lighten(hex,amt){
+  let c=parseInt((hex||'#444444').replace('#',''),16)||0x444444;
+  const r=Math.min(255,((c>>16)&0xff)+amt);
+  const g=Math.min(255,((c>>8)&0xff)+amt);
+  const b=Math.min(255,(c&0xff)+amt);
+  return '#'+(r<<16|g<<8|b).toString(16).padStart(6,'0');
+}
+function fx(n){return n.toFixed(2)}
+
+/* ═══════════════════════════════════
+   SVG KNOB DRAG (main board)
+═══════════════════════════════════ */
+let svgDragging=null, svgDragY=0, svgDragV=0, svgRebuildTimer=null;
+
+function onSVGKnobDown(e){
+  const g=e.currentTarget;
+  svgDragging={g, name:g.dataset.knob, cx:+g.dataset.cx, cy:+g.dataset.cy, rb:+(g.dataset.rb||20), ra:+(g.dataset.ra||25)};
+  svgDragY=e.clientY; svgDragV=knobVals[svgDragging.name]??50;
+  window.addEventListener('mousemove', onSVGKnobMove);
+  window.addEventListener('mouseup',   onSVGKnobUp);
+  e.preventDefault();
+}
+function onSVGKnobTouchStart(e){
+  const g=e.currentTarget;
+  svgDragging={g, name:g.dataset.knob, cx:+g.dataset.cx, cy:+g.dataset.cy, rb:+(g.dataset.rb||20), ra:+(g.dataset.ra||25)};
+  svgDragY=e.touches[0].clientY; svgDragV=knobVals[svgDragging.name]??50;
+  window.addEventListener('touchmove', onSVGKnobTouchMove, {passive:false});
+  window.addEventListener('touchend',  onSVGKnobUp);
+  e.preventDefault();
+}
+function onSVGKnobMove(e){ applySVGDrag(e.clientY); }
+function onSVGKnobTouchMove(e){ applySVGDrag(e.touches[0].clientY); e.preventDefault(); }
+function applySVGDrag(clientY){
+  if(!svgDragging)return;
+  const {g,name,cx,cy}=svgDragging;
+  const m=KNOB_META[name]||{min:0,max:100};
+  const delta=(svgDragY-clientY)/110;
+  const newV=Math.min(m.max,Math.max(m.min,svgDragV+delta*(m.max-m.min)));
+  knobVals[name]=newV;
+  const pct=(newV-m.min)/(m.max-m.min);
+  _updateKnobGroup(g, name, cx, cy, pct, false);
+  if(isPlaying){clearTimeout(svgRebuildTimer);svgRebuildTimer=setTimeout(rebuildAudio,120);}
+}
+function onSVGKnobUp(){
+  svgDragging=null;
+  window.removeEventListener('mousemove', onSVGKnobMove);
+  window.removeEventListener('mouseup',   onSVGKnobUp);
+  window.removeEventListener('touchmove', onSVGKnobTouchMove);
+  window.removeEventListener('touchend',  onSVGKnobUp);
+}
+
+/* ═══════════════════════════════════
+   KNOB META (shared)
+═══════════════════════════════════ */
+const KNOB_META={
+  gain:{min:0,max:100,unit:''},level:{min:0,max:100,unit:''},volume:{min:0,max:100,unit:''},
+  tone:{min:0,max:100,unit:''},sustain:{min:0,max:100,unit:''},fuzz:{min:0,max:100,unit:''},
+  drive:{min:0,max:100,unit:''},mix:{min:0,max:100,unit:''},feedback:{min:0,max:90,unit:''},
+  time:{min:50,max:900,unit:'ms'},rate:{min:0,max:100,unit:''},depth:{min:0,max:100,unit:''},
+  resonance:{min:0,max:100,unit:''},bass:{min:0,max:100,unit:''},treble:{min:0,max:100,unit:''},
+  attack:{min:0,max:100,unit:''},decay:{min:0,max:100,unit:''},
+};
+
+/* ═══════════════════════════════════
+   LED
+═══════════════════════════════════ */
+let pedalData=null, knobVals={};
+function setLed(s){
+  const el=document.getElementById('pled');
+  if(!el)return;
+  el.className='pled'+(s==='on'?' on':s==='seek'?' seek':'');
+  const svgLed=document.getElementById('svg-led');
+  if(svgLed){svgLed.setAttribute('opacity',s==='on'?'1':'0.3');}
+}
+
+/* ═══════════════════════════════════
+   AUDIO ENGINE
+═══════════════════════════════════ */
+let audioCtx=null,isPlaying=false,isBypassed=false;
+let srcNode=null,analyser=null,chainNodes=[],animId=null;
+
+function initCtx(){
+  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended')audioCtx.resume().catch(()=>{});
+}
+
+/* ─── INPUT SIGNAL STATE ─── */
+let currentInputSig = 'chord';
+function setInputSignal(sig, btn){
+  currentInputSig = sig;
+  document.querySelectorAll('.input-pill').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(isPlaying) rebuildAudio();
+}
+
+/* ─── PEDAL CHAIN STATE ─── */
+let pedalChain = []; // up to 4 {data, knobVals}
+function addToChain(data, kv){
+  if(pedalChain.length >= 4){ showToast('Chain full — max 4 pedals. Remove one first.'); return; }
+  pedalChain.push({data, kv: Object.assign({},kv)});
+  renderChainBoard();
+  if(isPlaying) rebuildAudio();
+}
+function removeFromChain(idx){
+  pedalChain.splice(idx,1);
+  renderChainBoard();
+  if(isPlaying) rebuildAudio();
+}
+function clearChain(){
+  pedalChain=[];
+  renderChainBoard();
+  if(isPlaying) rebuildAudio();
+}
+function renderChainBoard(){
+  const board = document.getElementById('chain-board');
+  if(!board) return;
+  board.innerHTML = '';
+  pedalChain.forEach((item,i)=>{
+    const el = document.createElement('div');
+    el.className = 'chain-pedal' + (i===0?' active-chain':'');
+    el.title = 'Click to remove from chain';
+    el.innerHTML = `<div class="chain-pedal-name">${item.data.name||'Pedal'}</div>
+      <div class="chain-pedal-type">${(item.data.type||'').toUpperCase()}</div>
+      <button class="chain-remove-btn" onclick="removeFromChain(${i})" title="Remove">✕</button>`;
+    if(i>0){
+      const arr = document.createElement('span');
+      arr.className='chain-arrow'; arr.textContent='→';
+      board.appendChild(arr);
+    }
+    board.appendChild(el);
+  });
+  // add-slot if room
+  if(pedalChain.length < 4){
+    if(pedalChain.length>0){const arr=document.createElement('span');arr.className='chain-arrow';arr.textContent='→';board.appendChild(arr);}
+    const slot = document.createElement('div');
+    slot.className = 'chain-add-slot';
+    slot.title = 'Load a pedal then click "+ Add to Chain"';
+    slot.innerHTML = '<span style="color:var(--text3);font-size:18px">+</span>';
+    board.appendChild(slot);
+  }
+  // update add-btn visibility
+  const ab = document.getElementById('add-chain-btn');
+  if(ab) ab.style.display = pedalData ? '' : 'none';
+}
+
+/* ─── KARPLUS-STRONG STRING SYNTHESIS ─── */
+function karplusStrong(sr, freq, duration, dampening){
+  const N = Math.max(2, Math.round(sr / freq));
+  const len = Math.floor(sr * duration);
+  const samples = new Float32Array(len);
+  const ring = new Float32Array(N);
+  for(let i=0;i<N;i++) ring[i] = Math.random()*2-1;
+  let idx = 0;
+  for(let i=0;i<len;i++){
+    samples[i] = ring[idx];
+    const next = (ring[idx] + ring[(idx+1)%N]) * 0.5 * dampening;
+    ring[idx] = next;
+    idx = (idx+1)%N;
+  }
+  return samples;
+}
+
+function makeGuitarBuffer(){
+  const sr = audioCtx.sampleRate;
+  const sig = currentInputSig || 'chord';
+
+  if(sig === 'chord'){
+    // 6-string open E chord with Karplus-Strong
+    const fqs = [82.41, 123.47, 164.81, 207.65, 246.94, 329.63];
+    const dur = 3.2, damp = 0.998;
+    const len = Math.floor(sr * dur);
+    const buf = audioCtx.createBuffer(1, len, sr);
+    const d = buf.getChannelData(0);
+    fqs.forEach((f,si)=>{
+      const s = karplusStrong(sr, f, dur, damp - si*0.0005);
+      // slight strum delay — each string plucked ~10ms apart
+      const offset = Math.floor(si * sr * 0.010);
+      for(let i=0;i<len-offset;i++) d[i+offset] += s[i] * 0.18;
+    });
+    return buf;
+
+  } else if(sig === 'single'){
+    // Single note — high E string
+    const dur = 3.0;
+    const len = Math.floor(sr * dur);
+    const buf = audioCtx.createBuffer(1, len, sr);
+    const d = buf.getChannelData(0);
+    const s = karplusStrong(sr, 329.63, dur, 0.9985);
+    for(let i=0;i<len;i++) d[i] = s[i] * 0.5;
+    return buf;
+
+  } else if(sig === 'palm'){
+    // Palm-muted — E & A strings, high dampening = fast decay
+    const fqs = [82.41, 110.0, 164.81, 123.47];
+    const dur = 2.0, damp = 0.980; // very high dampening = muted thud
+    const len = Math.floor(sr * dur);
+    const buf = audioCtx.createBuffer(1, len, sr);
+    const d = buf.getChannelData(0);
+    // rhythmic pattern: 4 hits
+    const pattern = [0, 0.25, 0.5, 0.75];
+    pattern.forEach((t,pi)=>{
+      const off = Math.floor(t * sr);
+      fqs.forEach((f,si)=>{
+        const hit = karplusStrong(sr, f, 0.22, damp);
+        for(let i=0;i<hit.length&&(off+i)<len;i++) d[off+i] += hit[i] * 0.22;
+      });
+    });
+    return buf;
+
+  } else { // 'riff'
+    // Riff — pentatonic descending phrase
+    const notes = [329.63, 293.66, 261.63, 246.94, 220.0, 196.0, 174.61, 164.81];
+    const noteDur = 0.28, totalDur = notes.length * noteDur + 0.4;
+    const len = Math.floor(sr * totalDur);
+    const buf = audioCtx.createBuffer(1, len, sr);
+    const d = buf.getChannelData(0);
+    notes.forEach((f, ni)=>{
+      const off = Math.floor(ni * noteDur * sr);
+      const s = karplusStrong(sr, f, noteDur * 1.5, 0.997);
+      for(let i=0;i<s.length&&(off+i)<len;i++) d[off+i] += s[i] * 0.38;
+    });
+    return buf;
+  }
+}
+
+function buildEffectChain(p, kv){
+  // p = pedalData object, kv = knob values map
+  if(!p) p = pedalData;
+  if(!kv) kv = knobVals;
+  if(!p) return[];
+  const nodes=[];
+  const gPct=(kv.gain??kv.drive??kv.fuzz??kv.sustain??60)/100;
+  const tPct=(kv.tone??50)/100;
+  const wPct=(kv.mix??kv.level??kv.volume??60)/100;
+  const type=(p.type||'').toLowerCase();
+  switch(type){
+    case'distortion':{
+      // Hard-clipping distortion — bright, aggressive
+      const preGain=audioCtx.createGain(); preGain.gain.value=1+gPct*6;
+      nodes.push(preGain);
+      const ws=audioCtx.createWaveShaper();
+      const amt=gPct*500+60, curve=new Float32Array(1024);
+      for(let i=0;i<1024;i++){const x=(i*2)/1024-1; curve[i]=(Math.PI+amt)*x/(Math.PI+amt*Math.abs(x));}
+      ws.curve=curve; ws.oversample='4x'; nodes.push(ws);
+      const tone=audioCtx.createBiquadFilter();
+      tone.type='peaking'; tone.frequency.value=600+tPct*3400; tone.gain.value=(tPct-0.5)*18; tone.Q.value=0.8;
+      nodes.push(tone);
+      // Cut mud below 80Hz
+      const hp=audioCtx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=80; nodes.push(hp);
+      break;
+    }
+    case'overdrive':{
+      // Soft-clipping tube-style overdrive — warm, asymmetric
+      const preGain=audioCtx.createGain(); preGain.gain.value=1+gPct*4; nodes.push(preGain);
+      const ws=audioCtx.createWaveShaper();
+      const amt=gPct*180+20, curve=new Float32Array(1024);
+      for(let i=0;i<1024;i++){
+        const x=(i*2)/1024-1;
+        // asymmetric: positive half soft, negative harder (tube asymmetry)
+        curve[i] = x>=0 ? Math.tanh(x*(1+amt/40)) : (Math.PI+amt)*x/(Math.PI+amt*Math.abs(x)*1.3);
+      }
+      ws.curve=curve; ws.oversample='2x'; nodes.push(ws);
+      const tone=audioCtx.createBiquadFilter();
+      tone.type='peaking'; tone.frequency.value=800+tPct*2400; tone.gain.value=(tPct-0.5)*14;
+      nodes.push(tone); break;
+    }
+    case'fuzz':{
+      // Full-wave rectification style fuzz — extreme, octave-up character
+      const preGain=audioCtx.createGain(); preGain.gain.value=2+gPct*8; nodes.push(preGain);
+      const ws=audioCtx.createWaveShaper();
+      const amt=gPct*600+100, curve=new Float32Array(1024);
+      for(let i=0;i<1024;i++){
+        const x=(i*2)/1024-1;
+        curve[i]=Math.sign(x)*(1-Math.exp(-Math.abs(x)*amt/50));
+      }
+      ws.curve=curve; ws.oversample='4x'; nodes.push(ws);
+      // Fuzz needs a tone stack with high-end rolloff
+      const tone=audioCtx.createBiquadFilter();
+      tone.type='lowpass'; tone.frequency.value=3000-tPct*2200; nodes.push(tone); break;
+    }
+    case'reverb':{
+      // Schroeder reverb: 4 comb filters + 2 allpass diffusers
+      const combDelays=[0.0297,0.0371,0.0411,0.0437], combGains=[0.742,0.733,0.715,0.697];
+      const wG_val=Math.max(0.15,wPct);
+      const drySend=audioCtx.createGain(); drySend.gain.value=1-wG_val*0.5;
+      const wetSum=audioCtx.createGain(); wetSum.gain.value=wG_val*0.6;
+      const combNodes=combDelays.map((dT,ci)=>{
+        const d=audioCtx.createDelay(dT+0.01); d.delayTime.value=dT;
+        const fg=audioCtx.createGain(); fg.gain.value=combGains[ci];
+        d.connect(fg); fg.connect(d); // comb feedback
+        return d;
+      });
+      const ap1=audioCtx.createBiquadFilter(); ap1.type='allpass'; ap1.frequency.value=225; ap1.Q.value=4;
+      const ap2=audioCtx.createBiquadFilter(); ap2.type='allpass'; ap2.frequency.value=556; ap2.Q.value=4;
+      nodes.push({_t:'schroeder',drySend,wetSum,combs:combNodes,ap1,ap2,wg:wG_val});
+      break;
+    }
+    case'delay':{
+      // Ping-pong stereo delay with HPF on feedback
+      const delT=Math.max((kv.time??300),50)/1000;
+      const fbGain=Math.min((kv.feedback??40)/100,0.88);
+      const del=audioCtx.createDelay(2.0); del.delayTime.value=delT;
+      const fbk=audioCtx.createGain(); fbk.gain.value=fbGain;
+      // HPF on feedback loop to keep repeats from getting muddy
+      const hpf=audioCtx.createBiquadFilter(); hpf.type='highpass'; hpf.frequency.value=200;
+      del.connect(hpf); hpf.connect(fbk); fbk.connect(del);
+      nodes.push({_t:'delay',del,wg:Math.min(wPct*1.1,0.82)}); break;
+    }
+    case'chorus':{
+      const del=audioCtx.createDelay(0.06); del.delayTime.value=0.025;
+      const lfo=audioCtx.createOscillator(),lg=audioCtx.createGain();
+      lfo.frequency.value=(kv.rate??30)/100*3.5+0.15; lg.gain.value=(kv.depth??50)/100*0.014;
+      lfo.connect(lg); lg.connect(del.delayTime); lfo.start();
+      nodes.push({_t:'mod',del,lfo}); break;
+    }
+    case'phaser':{
+      const stages=6;
+      const filts=Array.from({length:stages},(_,i)=>{
+        const ff=audioCtx.createBiquadFilter(); ff.type='allpass';
+        ff.frequency.value=200+i*380; ff.Q.value=(kv.resonance??40)/100*7+0.8;
+        return ff;
+      });
+      const lfo=audioCtx.createOscillator(),lg=audioCtx.createGain();
+      lfo.frequency.value=(kv.rate??30)/100*3+0.1; lg.gain.value=700+((kv.depth??50)/100)*900;
+      lfo.connect(lg); filts.forEach(ff=>lg.connect(ff.frequency)); lfo.start();
+      nodes.push({_t:'phaser',filts,lfo}); break;
+    }
+    case'flanger':{
+      const del=audioCtx.createDelay(0.025); del.delayTime.value=0.003;
+      const lfo=audioCtx.createOscillator(),lg=audioCtx.createGain();
+      lfo.frequency.value=(kv.rate??30)/100*6+0.1; lg.gain.value=0.003+(kv.depth??50)/100*0.005;
+      lfo.connect(lg); lg.connect(del.delayTime); lfo.start();
+      // Flangers have feedback
+      const fbk=audioCtx.createGain(); fbk.gain.value=(kv.feedback??40)/100*0.7;
+      del.connect(fbk); fbk.connect(del);
+      nodes.push({_t:'mod',del,lfo}); break;
+    }
+    case'tremolo':{
+      const g=audioCtx.createGain(); g.gain.value=0.5;
+      const lfo=audioCtx.createOscillator(),lg=audioCtx.createGain();
+      const waveforms=['sine','square','triangle'];
+      lfo.type=waveforms[Math.round(((kv.wave??0)/100)*2)]||'sine';
+      lfo.frequency.value=(kv.rate??30)/100*14+0.8; lg.gain.value=(kv.depth??50)/100*0.5;
+      lfo.connect(lg); lg.connect(g.gain); lfo.start();
+      nodes.push({_t:'tremolo',g,lfo}); break;
+    }
+    case'compressor':{
+      // Two-stage: noise gate then compressor
+      const gate=audioCtx.createDynamicsCompressor();
+      gate.threshold.value=-60; gate.knee.value=5; gate.ratio.value=20;
+      gate.attack.value=0.001; gate.release.value=0.05; nodes.push(gate);
+      const comp=audioCtx.createDynamicsCompressor();
+      comp.threshold.value=-24; comp.knee.value=8; comp.ratio.value=3+gPct*14;
+      comp.attack.value=Math.max((kv.attack??30)/1000,0.001); comp.release.value=0.28; nodes.push(comp);
+      // Make-up gain
+      const makeup=audioCtx.createGain(); makeup.gain.value=1+gPct*2; nodes.push(makeup);
+      break;
+    }
+    default:{const g=audioCtx.createGain();g.gain.value=0.5+gPct*0.7;nodes.push(g);}
+  }
+  return nodes;
+}
+
+function wireChain(src,chain,dest){
+  let cur=src;
+  chain.forEach(node=>{
+    if(!node)return;
+    if(node._t==='schroeder'){
+      // Schroeder reverb: cur → dry + each comb → allpass chain → wet mix
+      cur.connect(node.drySend); node.drySend.connect(dest);
+      node.combs.forEach(c=>{ cur.connect(c); c.connect(node.ap1); });
+      node.ap1.connect(node.ap2); node.ap2.connect(node.wetSum); node.wetSum.connect(dest);
+      cur=null;
+    }else if(node._t==='wet-dry'){
+      const dG=audioCtx.createGain();dG.gain.value=1;const wG=audioCtx.createGain();wG.gain.value=node.wg;
+      cur.connect(dG);dG.connect(dest);cur.connect(node.wet);node.wet.connect(wG);wG.connect(dest);cur=null;
+    }else if(node._t==='delay'){
+      const dG=audioCtx.createGain();dG.gain.value=1;const wG=audioCtx.createGain();wG.gain.value=node.wg;
+      cur.connect(dG);dG.connect(dest);cur.connect(node.del);node.del.connect(wG);wG.connect(dest);cur=null;
+    }else if(node._t==='mod'){
+      cur.connect(node.del);cur.connect(dest);node.del.connect(dest);cur=null;
+    }else if(node._t==='phaser'){
+      let c=cur;node.filts.forEach(ff=>{c.connect(ff);c=ff;});c.connect(dest);cur=null;
+    }else if(node._t==='tremolo'){cur.connect(node.g);cur=node.g;}
+    else{if(cur)cur.connect(node);cur=node;}
+  });
+  if(cur)cur.connect(dest);
+}
+
+function startAudio(){
+  if(!pedalData && pedalChain.length===0) return;
+  initCtx();
+  analyser=audioCtx.createAnalyser(); analyser.fftSize=512;
+  const master=audioCtx.createGain(); master.gain.value=0.40;
+  srcNode=audioCtx.createBufferSource();
+  srcNode.buffer=makeGuitarBuffer();
+  // Loop chord/single, play-once for riff/palm
+  srcNode.loop = (currentInputSig==='chord'||currentInputSig==='single');
+
+  if(isBypassed){
+    srcNode.connect(analyser);
+  } else if(pedalChain.length > 0){
+    // Serial pedal chain: create a gain junction between each pedal so we
+    // always have a concrete AudioNode as the "current output" even after
+    // wet-dry splits that null out the cur pointer in wireChain.
+    let allNodes = [];
+    const junctions = Array.from({length: pedalChain.length+1}, ()=>{
+      const g = audioCtx.createGain(); g.gain.value=1; return g;
+    });
+    srcNode.connect(junctions[0]);
+    pedalChain.forEach((item,i)=>{
+      const effectNodes = buildEffectChain(item.data, item.kv);
+      wireChain(junctions[i], effectNodes, junctions[i+1]);
+      allNodes = allNodes.concat(effectNodes, [junctions[i]]);
+    });
+    junctions[pedalChain.length].connect(analyser);
+    chainNodes = allNodes;
+  } else {
+    // Single loaded pedal
+    chainNodes=buildEffectChain(pedalData, knobVals);
+    wireChain(srcNode,chainNodes,analyser);
+  }
+
+  analyser.connect(master); master.connect(audioCtx.destination);
+  srcNode.start(); isPlaying=true;
+  const pb=document.getElementById('play-btn');
+  if(pb){ pb.classList.add('active'); document.getElementById('play-lbl').textContent='Stop'; }
+  drawWave();
+  // For one-shot signals, auto-stop when buffer ends
+  if(!srcNode.loop){
+    srcNode.onended=()=>{ if(isPlaying) stopAudio(); };
+  }
+}
+function stopAudio(){
+  if(srcNode){try{srcNode.stop()}catch(e){}srcNode=null;}
+  chainNodes.forEach(n=>{try{if(n.lfo)n.lfo.stop()}catch(e){}});
+  chainNodes=[];isPlaying=false;
+  const pb=document.getElementById('play-btn');
+  if(pb){pb.classList.remove('active');document.getElementById('play-lbl').textContent='Play';}
+  if(animId){cancelAnimationFrame(animId);animId=null;}
+  clearWave();
+}
+function rebuildAudio(){const was=isPlaying;if(was)stopAudio();if(was)startAudio();}
+function togglePlay(){
+  // Allow play if single pedal loaded OR chain has pedals
+  if(!isPlaying && !pedalData && pedalChain.length===0) return;
+  isPlaying?stopAudio():startAudio();
+}
+function addCurrentToChain(){
+  if(!pedalData){ showToast('Load a pedal first.'); return; }
+  addToChain(pedalData, knobVals);
+  showToast(`${pedalData.name||pedalData.model||'Pedal'} added to chain (${pedalChain.length}/4)`);
+}
+function showToast(msg){
+  let t=document.getElementById('pedal-toast');
+  if(!t){t=document.createElement('div');t.id='pedal-toast';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:8px 18px;border-radius:20px;font-size:12px;font-family:var(--mono);z-index:9999;pointer-events:none;opacity:0;transition:opacity .25s';document.body.appendChild(t);}
+  t.textContent=msg; t.style.opacity='1';
+  clearTimeout(t._tid); t._tid=setTimeout(()=>{t.style.opacity='0';},2400);
+}
+function toggleBypass(){
+  isBypassed=!isBypassed;
+  const btn=document.getElementById('bypass-btn');
+  btn.textContent='Bypass: '+(isBypassed?'on':'off');
+  btn.className='stomp-btn bypass-btn'+(isBypassed?' on':'');
+  if(isPlaying)rebuildAudio();
+}
+
+/* ═══════════════════════════════════
+   WAVEFORM
+═══════════════════════════════════ */
+function drawWave(){
+  const canvas=document.getElementById('waveform');if(!canvas)return;
+  const ctx=canvas.getContext('2d');const w=canvas.width,h=canvas.height;
+  function frame(){
+    animId=requestAnimationFrame(frame);if(!analyser)return;
+    const buf=new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteTimeDomainData(buf);
+    ctx.clearRect(0,0,w,h);
+    ctx.save();ctx.shadowColor='#E8A02050';ctx.shadowBlur=5;
+    ctx.strokeStyle='#E8A020';ctx.lineWidth=1.8;ctx.beginPath();
+    for(let i=0;i<buf.length;i++){const x=(i/buf.length)*w,y=(buf[i]/128)*(h/2);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+    ctx.stroke();ctx.restore();
+  }
+  frame();
+}
+function clearWave(){const c=document.getElementById('waveform');if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);}
+function resizeCanvas(){const c=document.getElementById('waveform');if(!c)return;c.width=c.offsetWidth||800;c.height=c.offsetHeight||56;}
+
+/* ═══════════════════════════════════
+   MODE SWITCHING (Pedals / Ear Training)
+═══════════════════════════════════ */
+let appMode = 'pedals';
+function switchMode(m){
+  appMode = m;
+  document.getElementById('tab-pedals').classList.toggle('active', m==='pedals');
+  document.getElementById('tab-ear').classList.toggle('active', m==='ear');
+  document.getElementById('pedals-sidebar').style.display = m==='pedals' ? '' : 'none';
+  const earSb = document.getElementById('ear-sidebar');
+  if(earSb) earSb.style.display = m==='ear' ? 'flex' : 'none';
+  const bs = document.getElementById('board-stage');
+  if(bs) bs.style.display = m==='pedals' ? 'flex' : 'none';
+  const ep = document.getElementById('et-panel');
+  if(ep) ep.classList.toggle('active', m==='ear');
+  if(m==='ear'){
+    // stop any playing audio
+    if(isPlaying) stopAudio();
+    etShowIdle();
+    setTimeout(etResizeCanvas,80);
+  }
+}
+
+/* ═══════════════════════════════════
+   EAR TRAINING ENGINE
+═══════════════════════════════════ */
+let etMode='identify', etDiff='beginner';
+let etScore=0, etStreak=0;
+let etQuestions=[], etQIdx=0, etQTotal=5;
+let etAnswered=false, etCorrectIdx=null;
+let etAudioCtx=null, etAnalyser=null, etAnimId=null, etCurrentNodes=[];
+let etListening=false;
+
+/* Effect definitions — what to teach */
+const ET_EFFECTS = {
+  clean:       { label:'Clean (no effect)',   color:'#888' },
+  distortion:  { label:'Distortion',          color:'#E84030' },
+  overdrive:   { label:'Overdrive',           color:'#F7931E' },
+  fuzz:        { label:'Fuzz',                color:'#9B59B6' },
+  chorus:      { label:'Chorus',              color:'#2980B9' },
+  phaser:      { label:'Phaser',              color:'#27AE60' },
+  flanger:     { label:'Flanger',             color:'#16A085' },
+  delay:       { label:'Delay',               color:'#D4AC0D' },
+  reverb:      { label:'Reverb',              color:'#5DADE2' },
+  tremolo:     { label:'Tremolo',             color:'#A93226' },
+  compressor:  { label:'Compressor',          color:'#1ABC9C' },
+};
+
+/* Explanations for ear training feedback */
+const ET_EXPLAIN = {
+  clean:      'A clean guitar tone has no processing — just the natural string vibration. Clear, bright, and articulate.',
+  distortion: 'Distortion clips the waveform hard, adding aggressive harmonics. Listen for the gritty crunch and sustained sustain.',
+  overdrive:  'Overdrive is a softer clip — think of pushing a tube amp. Warmer and more musical than distortion.',
+  fuzz:       'Fuzz is extreme clipping that creates a buzzy, woolly texture. Very thick and sustaining, often wobbly sounding.',
+  chorus:     'Chorus splits the signal and pitch-modulates one copy slightly. You hear a shimmery, widened, slightly detuned sound.',
+  phaser:     'Phaser sweeps a series of notches through the frequency spectrum, creating a swirling, jet-like "whooshing" tone.',
+  flanger:    'Flanger creates a comb-filter sweep with a metallic, jet-plane swoosh — like chorus but more extreme and resonant.',
+  delay:      'Delay repeats the signal after a short pause — like an echo. You can clearly hear the original note then its copies.',
+  reverb:     'Reverb simulates space — reflections from walls, a hall, or a room. The tone blooms and fades with a tail.',
+  tremolo:    'Tremolo rhythmically pulses the volume up and down, creating a pulsing, stuttering effect on sustained notes.',
+  compressor: 'Compression evens out the dynamics — soft notes get louder, loud notes get quieter. Sustain is notably longer.',
+};
+
+/* Difficulty determines: choice pool size, similarity of distractors */
+const DIFF_CFG = {
+  beginner:     { choiceCount:3, pool:['clean','distortion','chorus','reverb','delay'] },
+  intermediate: { choiceCount:4, pool:['clean','distortion','overdrive','fuzz','chorus','phaser','delay','reverb'] },
+  advanced:     { choiceCount:4, pool:Object.keys(ET_EFFECTS) },
+};
+
+function selectEtMode(m,btn){
+  etMode=m;
+  document.querySelectorAll('.et-mode-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function selectDiff(d,btn){
+  etDiff=d;
+  document.querySelectorAll('.diff-pill').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function etShowIdle(){
+  const idle=document.getElementById('et-idle');
+  const round=document.getElementById('et-round');
+  const result=document.getElementById('et-result');
+  if(idle) idle.style.display='flex';
+  if(round) round.classList.remove('active');
+  if(result) result.classList.remove('active');
+}
+
+/* Build a set of questions based on mode */
+function buildQuestions(){
+  const cfg=DIFF_CFG[etDiff];
+  const pool=[...cfg.pool];
+  const qs=[];
+
+  if(etMode==='identify'){
+    // Pick N target effects, generate choices each time
+    const targets=shuffle(pool).slice(0,etQTotal);
+    targets.forEach(target=>{
+      const others=pool.filter(e=>e!==target);
+      const distractors=shuffle(others).slice(0, cfg.choiceCount-1);
+      const choices=shuffle([target,...distractors]);
+      qs.push({ type:'identify', target, choices,
+        prompt:'Listen to this guitar tone. Which effect has been applied?' });
+    });
+  } else if(etMode==='knob'){
+    // "What changed?" — two sounds, one parameter shifted
+    const knobTargets=['gain','depth','rate','time'];
+    for(let i=0;i<etQTotal;i++){
+      const fx=pool[i%pool.length];
+      const knob=knobTargets[i%knobTargets.length];
+      const paramBefore=30, paramAfter=80;
+      const allKnobs=knobTargets.filter(k=>k!==knob);
+      const distractors=shuffle(allKnobs).slice(0,cfg.choiceCount-1);
+      const choices=shuffle([knob,...distractors]);
+      qs.push({ type:'knob', target:knob, fx, paramBefore, paramAfter, choices,
+        prompt:`You'll hear the same ${ET_EFFECTS[fx]?.label||fx} pedal twice — but one knob was turned up. Which control changed?` });
+    }
+  } else {
+    // stack: two effects combined
+    const pairsPool=[
+      ['distortion','reverb'],['overdrive','delay'],['chorus','reverb'],
+      ['fuzz','delay'],['phaser','reverb'],['tremolo','delay'],
+      ['distortion','chorus'],['overdrive','phaser'],
+    ].filter(pair=>pair.every(e=>pool.includes(e)));
+    const pairs=shuffle(pairsPool).slice(0,etQTotal);
+    pairs.forEach(([a,b])=>{
+      const label=`${ET_EFFECTS[a].label} + ${ET_EFFECTS[b].label}`;
+      const all=pool.filter(e=>e!==a&&e!==b);
+      // Wrong choices are wrong pairs
+      const wrongPairs=shuffle(pairsPool.filter(p=>!(p[0]===a&&p[1]===b)&&!(p[0]===b&&p[1]===a))).slice(0,cfg.choiceCount-1);
+      const choices=[
+        {label, correct:true},
+        ...wrongPairs.map(p=>({label:`${ET_EFFECTS[p[0]].label} + ${ET_EFFECTS[p[1]].label}`,correct:false})),
+      ];
+      qs.push({ type:'stack', target:[a,b], choices:shuffle(choices),
+        prompt:'This guitar tone has TWO effects applied. Identify both effects in the chain.' });
+    });
+  }
+  return qs;
+}
+function shuffle(arr){ return arr.slice().sort(()=>Math.random()-.5); }
+
+/* ── Start a round ── */
+function startEarTraining(){
+  try{
+    etScore=0; etStreak=0;
+    updateEtScoreDisplay();
+    etQuestions=buildQuestions();
+    etQIdx=0;
+    const idle=document.getElementById('et-idle');
+    const result=document.getElementById('et-result');
+    const round=document.getElementById('et-round');
+    if(idle) idle.style.display='none';
+    if(result) result.classList.remove('active');
+    if(round) round.classList.add('active');
+    renderEtQuestion();
+  }catch(err){
+    console.error('startEarTraining error:', err);
+  }
+}
+
+function renderEtQuestion(){
+  const q=etQuestions[etQIdx];
+  etAnswered=false;
+  etCorrectIdx=null;
+
+  document.getElementById('et-qnum').textContent=`Question ${etQIdx+1} of ${etQuestions.length}`;
+  document.getElementById('et-prompt').textContent=q.prompt;
+  document.getElementById('et-feedback').className='et-feedback';
+  document.getElementById('et-next-btn').className='et-next-btn';
+  document.getElementById('et-listen-hint').textContent='Press to hear the effect';
+  const lb=document.getElementById('et-listen-btn');
+  lb.className='et-listen-btn'; lb.disabled=false;
+
+  // Progress dots
+  const prog=document.getElementById('et-progress');
+  prog.innerHTML=etQuestions.map((_,i)=>`<div class="et-prog-dot${i<etQIdx?' done':i===etQIdx?' current':''}"></div>`).join('');
+
+  // Choices
+  const choicesEl=document.getElementById('et-choices');
+  choicesEl.innerHTML='';
+  const choices = q.type==='stack' ? q.choices : q.choices.map(c=>({label:ET_EFFECTS[c]?.label||c,correct:c===q.target,raw:c}));
+  choices.forEach((c,i)=>{
+    const btn=document.createElement('button');
+    btn.className='et-choice';
+    btn.textContent=c.label;
+    btn.dataset.idx=i;
+    btn.onclick=()=>etAnswerChosen(i, c.correct, choices, q);
+    choicesEl.appendChild(btn);
+  });
+
+  etStopSound();
+  etClearCanvas();
+}
+
+function etAnswerChosen(idx, isCorrect, choices, q){
+  if(etAnswered)return;
+  etAnswered=true;
+
+  const btns=document.querySelectorAll('.et-choice');
+  btns.forEach((btn,i)=>{
+    btn.disabled=true;
+    if(choices[i].correct) btn.classList.add(isCorrect&&i===idx?'correct':'reveal');
+  });
+  btns[idx].classList.remove('reveal');
+  btns[idx].classList.add(isCorrect?'correct':'wrong');
+
+  if(isCorrect){ etScore++; etStreak++; }
+  else { etStreak=0; }
+  updateEtScoreDisplay();
+
+  // Show feedback
+  const fb=document.getElementById('et-feedback');
+  const fbt=document.getElementById('et-fb-title');
+  const fbtxt=document.getElementById('et-fb-text');
+  fb.className='et-feedback show'+(isCorrect?'':' wrong-fb');
+  fbt.className='et-fb-title'+(isCorrect?' ok':' bad');
+  fbt.textContent=isCorrect?'✓ Correct!':'✗ Not quite';
+
+  // Generate explanation
+  let explanation='';
+  if(q.type==='identify'){
+    explanation=ET_EXPLAIN[q.target]||'';
+  } else if(q.type==='knob'){
+    const dirMap={gain:'gain/drive',depth:'modulation depth',rate:'LFO rate/speed',time:'delay/reverb time'};
+    explanation=`The ${dirMap[q.target]||q.target} knob was turned up. More ${q.target} makes the effect ${q.target==='gain'?'more distorted and saturated':q.target==='depth'?'more pronounced and wide':q.target==='rate'?'faster and more intense':'longer and more spacious'}.`;
+  } else {
+    const [a,b]=q.target;
+    explanation=`${ET_EFFECTS[a].label}: ${ET_EXPLAIN[a]?.split('.')[0]||''}. ${ET_EFFECTS[b].label}: ${ET_EXPLAIN[b]?.split('.')[0]||''}.`;
+  }
+
+  if(!isCorrect){
+    const correct=choices.find(c=>c.correct);
+    fbtxt.textContent=`The correct answer was "${correct?.label}". ${explanation}`;
+  } else {
+    fbtxt.textContent=explanation;
+  }
+
+  document.getElementById('et-next-btn').className='et-next-btn show';
+}
+
+function etNextQuestion(){
+  etStopSound();
+  etQIdx++;
+  if(etQIdx>=etQuestions.length){
+    showEtResult();
+  } else {
+    renderEtQuestion();
+  }
+}
+
+function showEtResult(){
+  document.getElementById('et-round').classList.remove('active');
+  const res=document.getElementById('et-result');
+  res.classList.add('active');
+  document.getElementById('et-result-score').textContent=etScore;
+  document.getElementById('et-result-of').textContent=`out of ${etQuestions.length}`;
+  const pct=etScore/etQuestions.length;
+  const msgs=['Keep listening — it takes time to build this skill!','Getting there! Try a few more rounds.','Good ear! You\'re developing your listening skills.','Great work — you have a strong ear for effects!','Perfect score! Your ears are finely tuned. 🎸'];
+  const mi=pct<0.4?0:pct<0.6?1:pct<0.8?2:pct<1?3:4;
+  document.getElementById('et-result-msg').textContent=msgs[mi];
+}
+
+function updateEtScoreDisplay(){
+  document.getElementById('et-score').textContent=etScore;
+  document.getElementById('et-streak').textContent='×'+etStreak;
+}
+
+/* ── Audio generation for ear training ── */
+function etInitCtx(){
+  if(!etAudioCtx) etAudioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(etAudioCtx.state==='suspended') etAudioCtx.resume().catch(()=>{});
+}
+
+function makeEtGuitarBuf(ctx){
+  const sr=ctx.sampleRate,len=Math.floor(sr*2.4);
+  const buf=ctx.createBuffer(1,len,sr);
+  const d=buf.getChannelData(0);
+  const fqs=[82.41,110.0,146.83,196.0,246.94,329.63];
+  for(let i=0;i<len;i++){
+    const t=i/sr; let s=0;
+    fqs.forEach((f,idx)=>{
+      const env=(1-Math.exp(-t*(60+idx*12)))*Math.exp(-t*(0.45+idx*0.18));
+      s+=env*(Math.sin(2*Math.PI*f*t)*0.55+Math.sin(2*Math.PI*f*2*t)*0.20+Math.sin(2*Math.PI*f*3*t)*0.10);
+    });
+    d[i]=s*0.16;
+  }
+  return buf;
+}
+
+function buildEtEffectChain(ctx, effectKey, strength){
+  // strength 0..1 from difficulty
+  const nodes=[]; const str=strength??0.6;
+  switch(effectKey){
+    case'clean': break;
+    case'distortion':{
+      const ws=ctx.createWaveShaper(); const amt=80+str*300; const curve=new Float32Array(512);
+      for(let i=0;i<512;i++){const x=(i*2)/512-1;curve[i]=(Math.PI+amt)*x/(Math.PI+amt*Math.abs(x));}
+      ws.curve=curve; ws.oversample='4x';
+      const tone=ctx.createBiquadFilter();tone.type='peaking';tone.frequency.value=1800;tone.gain.value=4;
+      nodes.push(ws,tone); break;
+    }
+    case'overdrive':{
+      const ws=ctx.createWaveShaper(); const amt=40+str*120; const curve=new Float32Array(512);
+      for(let i=0;i<512;i++){const x=(i*2)/512-1;curve[i]=Math.tanh(x*(1+amt/30));}
+      ws.curve=curve; ws.oversample='2x';
+      nodes.push(ws); break;
+    }
+    case'fuzz':{
+      const ws=ctx.createWaveShaper(); const amt=100+str*400; const curve=new Float32Array(512);
+      for(let i=0;i<512;i++){const x=(i*2)/512-1;curve[i]=Math.sign(x)*(1-Math.exp(-Math.abs(x)*amt/40));}
+      ws.curve=curve; ws.oversample='4x';
+      nodes.push(ws); break;
+    }
+    case'chorus':{
+      const del=ctx.createDelay(0.06); del.delayTime.value=0.025;
+      const lfo=ctx.createOscillator(),lg=ctx.createGain();
+      lfo.frequency.value=0.6+str*2.5; lg.gain.value=0.008+str*0.012;
+      lfo.connect(lg); lg.connect(del.delayTime); lfo.start();
+      nodes.push({_t:'mod',del,lfo}); break;
+    }
+    case'phaser':{
+      const filts=Array.from({length:4},(_,i)=>{const ff=ctx.createBiquadFilter();ff.type='allpass';ff.frequency.value=200+i*400;ff.Q.value=3+str*5;return ff;});
+      const lfo=ctx.createOscillator(),lg=ctx.createGain();
+      lfo.frequency.value=0.4+str*2; lg.gain.value=500+str*800;
+      lfo.connect(lg); filts.forEach(ff=>lg.connect(ff.frequency)); lfo.start();
+      nodes.push({_t:'phaser',filts,lfo}); break;
+    }
+    case'flanger':{
+      const del=ctx.createDelay(0.025); del.delayTime.value=0.003;
+      const lfo=ctx.createOscillator(),lg=ctx.createGain();
+      lfo.frequency.value=0.3+str*3; lg.gain.value=0.003+str*0.005;
+      lfo.connect(lg); lg.connect(del.delayTime); lfo.start();
+      nodes.push({_t:'mod',del,lfo}); break;
+    }
+    case'delay':{
+      const del=ctx.createDelay(2.0); del.delayTime.value=0.3+str*0.3;
+      const fbk=ctx.createGain(); fbk.gain.value=0.4+str*0.35;
+      del.connect(fbk); fbk.connect(del);
+      nodes.push({_t:'delay',del,wg:0.55+str*0.2}); break;
+    }
+    case'reverb':{
+      const irLen=ctx.sampleRate*3, ir=ctx.createBuffer(2,irLen,ctx.sampleRate);
+      for(let ch=0;ch<2;ch++){const d=ir.getChannelData(ch);for(let i=0;i<irLen;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/irLen,1.8+str*0.8);}
+      const conv=ctx.createConvolver(); conv.buffer=ir;
+      nodes.push({_t:'wet-dry',wet:conv,wg:0.45+str*0.35}); break;
+    }
+    case'tremolo':{
+      const g=ctx.createGain(); g.gain.value=0.5;
+      const lfo=ctx.createOscillator(),lg=ctx.createGain();
+      lfo.type='sine'; lfo.frequency.value=3+str*9; lg.gain.value=0.35+str*0.45;
+      lfo.connect(lg); lg.connect(g.gain); lfo.start();
+      nodes.push({_t:'tremolo',g,lfo}); break;
+    }
+    case'compressor':{
+      const comp=ctx.createDynamicsCompressor();
+      comp.threshold.value=-24; comp.knee.value=6; comp.ratio.value=4+str*12;
+      comp.attack.value=0.003; comp.release.value=0.18;
+      nodes.push(comp); break;
+    }
+  }
+  return nodes;
+}
+
+function wireEtChain(src, chain, dest, ctx){
+  let cur=src;
+  chain.forEach(node=>{
+    if(!node)return;
+    if(node._t==='wet-dry'){
+      const dG=ctx.createGain();dG.gain.value=0.7;
+      const wG=ctx.createGain();wG.gain.value=node.wg;
+      cur.connect(dG);dG.connect(dest);cur.connect(node.wet);node.wet.connect(wG);wG.connect(dest);cur=null;
+    }else if(node._t==='delay'){
+      const dG=ctx.createGain();dG.gain.value=0.8;
+      const wG=ctx.createGain();wG.gain.value=node.wg;
+      cur.connect(dG);dG.connect(dest);cur.connect(node.del);node.del.connect(wG);wG.connect(dest);cur=null;
+    }else if(node._t==='mod'){
+      cur.connect(node.del);cur.connect(dest);node.del.connect(dest);cur=null;
+    }else if(node._t==='phaser'){
+      let c=cur;node.filts.forEach(ff=>{c.connect(ff);c=ff;});c.connect(dest);cur=null;
+    }else if(node._t==='tremolo'){cur.connect(node.g);cur=node.g;}
+    else{if(cur)cur.connect(node);cur=node;}
+  });
+  if(cur)cur.connect(dest);
+}
+
+function etStopSound(){
+  etListening=false;
+  etCurrentNodes.forEach(n=>{
+    try{if(n._src)n._src.stop();}catch(e){}
+    try{if(n.lfo)n.lfo.stop();}catch(e){}
+    try{if(n.stop)n.stop();}catch(e){}
+  });
+  etCurrentNodes=[];
+  if(etAnimId){cancelAnimationFrame(etAnimId);etAnimId=null;}
+  etClearCanvas();
+  const lb=document.getElementById('et-listen-btn');
+  if(lb){lb.className='et-listen-btn';document.getElementById('et-listen-icon').textContent='▶';}
+}
+
+function etPlaySound(){
+  etStopSound();
+  etInitCtx();
+  const q=etQuestions[etQIdx];
+  if(!q)return;
+
+  const diffStrMap={beginner:0.5,intermediate:0.7,advanced:0.85};
+  const str=diffStrMap[etDiff]||0.6;
+
+  const lb=document.getElementById('et-listen-btn');
+  lb.className='et-listen-btn playing';
+  document.getElementById('et-listen-icon').textContent='◼';
+  etListening=true;
+
+  let effectKeys=[];
+  if(q.type==='identify') effectKeys=[q.target];
+  else if(q.type==='knob') effectKeys=[q.fx];  // simplified: play the effect
+  else effectKeys=q.target;  // stack: both effects
+
+  const ctx=etAudioCtx;
+  etAnalyser=ctx.createAnalyser(); etAnalyser.fftSize=512;
+  const master=ctx.createGain(); master.gain.value=0.38;
+  etAnalyser.connect(master); master.connect(ctx.destination);
+
+  let src;
+  if(q.type==='knob'){
+    // Play "before" then "after" with a gap
+    playKnobComparison(ctx,q,str,etAnalyser);
+    document.getElementById('et-listen-hint').textContent='First: before — then: after the change';
+    etWaveDraw();
+  } else {
+    src=ctx.createBufferSource();
+    src.buffer=makeEtGuitarBuf(ctx);
+    src.loop=false;
+
+    // Build chained effects
+    let chain=[];
+    effectKeys.forEach(k=>{chain=[...chain,...buildEtEffectChain(ctx,k,str)];});
+
+    wireEtChain(src,chain,etAnalyser,ctx);
+    etCurrentNodes=[{_src:src},...chain];
+    src.start();
+    src.onended=()=>{ if(etListening){ lb.className='et-listen-btn'; document.getElementById('et-listen-icon').textContent='▶'; etListening=false; } };
+    document.getElementById('et-listen-hint').textContent='Now choose your answer';
+    etWaveDraw();
+  }
+}
+
+function playKnobComparison(ctx,q,str,dest){
+  // Play effect with low param, pause, then with high param
+  function playOnce(paramOverride, onDone){
+    const src=ctx.createBufferSource();
+    src.buffer=makeEtGuitarBuf(ctx);
+    // use the fx with param strength
+    const chain=buildEtEffectChain(ctx,q.fx,paramOverride);
+    wireEtChain(src,chain,dest,ctx);
+    etCurrentNodes.push({_src:src},...chain);
+    src.start();
+    src.onended=onDone;
+  }
+  const lb=document.getElementById('et-listen-btn');
+  playOnce(0.25, ()=>{
+    // short gap then second play
+    setTimeout(()=>{
+      if(!etListening)return;
+      playOnce(0.9, ()=>{
+        if(etListening){lb.className='et-listen-btn';document.getElementById('et-listen-icon').textContent='▶';etListening=false;}
+      });
+    },500);
+  });
+}
+
+function etWaveDraw(){
+  const canvas=document.getElementById('et-wave-canvas');
+  if(!canvas||!etAnalyser)return;
+  const ctx2=canvas.getContext('2d');
+  const w=canvas.width,h=canvas.height;
+  function frame(){
+    if(!etListening){ctx2.clearRect(0,0,w,h);return;}
+    etAnimId=requestAnimationFrame(frame);
+    const buf=new Uint8Array(etAnalyser.frequencyBinCount);
+    etAnalyser.getByteTimeDomainData(buf);
+    ctx2.clearRect(0,0,w,h);
+    ctx2.save();ctx2.shadowColor='#22DD5550';ctx2.shadowBlur=4;
+    ctx2.strokeStyle='#22DD55';ctx2.lineWidth=1.5;ctx2.beginPath();
+    for(let i=0;i<buf.length;i++){
+      const x=(i/buf.length)*w,y=h/2+(buf[i]-128)/128*(h/2-2);
+      i===0?ctx2.moveTo(x,y):ctx2.lineTo(x,y);
+    }
+    ctx2.stroke();ctx2.restore();
+  }
+  frame();
+}
+function etClearCanvas(){
+  const c=document.getElementById('et-wave-canvas');
+  if(c){const ctx2=c.getContext('2d');ctx2.clearRect(0,0,c.width,c.height);}
+}
+function etResizeCanvas(){
+  const c=document.getElementById('et-wave-canvas');
+  if(c){c.width=c.offsetWidth||700;c.height=c.offsetHeight||36;}
+}
+
+/* ═══════════════════════════════════
+   INIT
+═══════════════════════════════════ */
+document.getElementById('pedal-input').addEventListener('keydown',e=>{if(e.key==='Enter')loadPedal();});
+document.getElementById('api-input').addEventListener('keydown',e=>{if(e.key==='Enter')saveKey();});
+document.getElementById('api-hdr').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleApiPanel();}});
+
+window.addEventListener('resize',()=>{resizeCanvas();if(isPlaying)clearWave();etResizeCanvas();});
+
+initTheme();
+loadSavedKey();
+buildCatUI();
+renderChainBoard();
+setTimeout(resizeCanvas,120);
+setTimeout(etResizeCanvas,120);
+
+/* ═══════════════════════════════════
+   FONT RESIZER
+═══════════════════════════════════ */
+const FONT_MIN = 12, FONT_MAX = 20, FONT_KEY = 'pedalai_fontsize';
+let currentFont = parseInt(localStorage.getItem(FONT_KEY) || '15', 10);
+function applyFont(size){
+  currentFont = Math.min(FONT_MAX, Math.max(FONT_MIN, size));
+  document.body.style.fontSize = currentFont + 'px';
+  const lbl = document.getElementById('font-size-lbl');
+  if(lbl) lbl.textContent = currentFont + 'px';
+  localStorage.setItem(FONT_KEY, currentFont);
+}
+function adjustFont(delta){ applyFont(currentFont + delta); }
+applyFont(currentFont);
+
+/* ═══════════════════════════════════
+   WALKTHROUGH TOUR
+═══════════════════════════════════ */
+const TOUR_KEY = 'pedalai_toured';
+let tourStep = 0;
+
+const TOUR_STEPS = [
+  {
+    title: 'Welcome to PedalAI',
+    body: 'This quick tour walks you through every feature. Use <strong>Next</strong> to continue, or click anywhere outside the card to exit. Hit the <strong>?</strong> button in the header any time to reopen this tour.',
+    target: null,
+    arrow: null
+  },
+  {
+    title: 'Day / Night Mode',
+    body: '<strong>Night mode</strong> gives you the classic dark studio feel — easy on the eyes in dim rooms. <strong>Day mode</strong> switches to a high-contrast light theme, perfect for brightly lit rehearsal spaces or outdoors. Your preference is saved automatically.',
+    target: '#theme-toggle-btn',
+    arrow: 'up'
+  },
+  {
+    title: 'Text Size',
+    body: 'Use the <strong>A−</strong> and <strong>A+</strong> buttons to shrink or enlarge the interface text (12 px → 20 px). Great for large screens or accessibility needs. Your choice sticks across sessions.',
+    target: '.font-resizer',
+    arrow: 'up'
+  },
+  {
+    title: 'API Key',
+    body: 'PedalAI uses the <strong>Claude AI</strong> to look up real pedal specs. Paste your Anthropic API key here. Keys are stored only in your browser\'s localStorage — never sent anywhere except directly to Anthropic. No key? Visit <strong>console.anthropic.com</strong> → API Keys → Create.',
+    target: '#api-hdr',
+    arrow: 'left'
+  },
+  {
+    title: 'Browse & Filter Pedals',
+    body: 'Pick a <strong>category</strong> (Distortion, Overdrive, Fuzz…) to filter the prebuilt pedal list. Click any pedal to load it instantly — no API key required for prebuilt pedals. Use <strong>Search</strong> to find by name.',
+    target: '.cat-bar',
+    arrow: 'left'
+  },
+  {
+    title: 'Load a Custom Pedal',
+    body: 'Type any pedal name (e.g. <em>"Boss BD-2"</em> or <em>"Strymon Timeline"</em>) in the search box and press <strong>Load Pedal</strong>. Claude AI fetches the real specs and builds the stomp-box for you. Requires an API key.',
+    target: '#pedal-input',
+    arrow: 'left'
+  },
+  {
+    title: 'The Pedalboard',
+    body: 'Loaded pedals appear here as SVG stomp-boxes on a velcro board. <strong>Drag the knobs</strong> up/down to tweak controls — the audio updates live. Click <strong>⬡ Zoom</strong> to expand a pedal for fine control. Hit the <strong>▶ Play</strong> button to hear the effect.',
+    target: '#board-stage',
+    arrow: 'up'
+  },
+  {
+    title: 'Ear Training',
+    body: 'Switch to <strong>👂 Ear Training</strong> to sharpen your tone recognition. Three game modes: <em>Name That Effect</em>, <em>Spot the Knob</em>, and <em>Chain Builder</em>. No API key needed — all audio runs in your browser. Choose difficulty and start listening!',
+    target: '#tab-ear',
+    arrow: 'left'
+  }
+];
+
+function buildTourDots(){
+  const el = document.getElementById('tour-dots');
+  el.innerHTML = TOUR_STEPS.map((_,i)=>`<div class="tour-dot${i===tourStep?' on':''}" id="tdot-${i}"></div>`).join('');
+}
+
+function positionTourCard(target, arrow){
+  const card = document.getElementById('tour-card');
+  const hl   = document.getElementById('tour-highlight');
+  if(!card || !hl) return;
+  card.className = arrow ? 'arrow-'+arrow : '';
+  if(!target){
+    hl.classList.add('hidden');
+    card.style.cssText = 'top:50%;left:50%;transform:translate(-50%,-50%)';
+    return;
+  }
+  const el = document.querySelector(target);
+  if(!el){ hl.classList.add('hidden'); card.style.cssText='top:50%;left:50%;transform:translate(-50%,-50%)'; return; }
+  const r = el.getBoundingClientRect();
+  const PAD = 8;
+  hl.classList.remove('hidden');
+  hl.style.cssText = `left:${r.left-PAD}px;top:${r.top-PAD}px;width:${r.width+PAD*2}px;height:${r.height+PAD*2}px`;
+
+  // position card near element
+  const CW = 320, gap = 14;
+  let cs = '';
+  const VW = window.innerWidth, VH = window.innerHeight;
+  if(arrow === 'up'){
+    let l = r.left + r.width/2 - CW/2;
+    l = Math.max(10, Math.min(VW-CW-10, l));
+    let t = r.bottom + gap;
+    if(t + 250 > VH){ t = r.top - 250 - gap; card.className='arrow-down'; }
+    cs = `left:${l}px;top:${t}px`;
+  } else if(arrow === 'left'){
+    let l = r.right + gap;
+    if(l + CW > VW - 10){ l = r.left - CW - gap; card.className='arrow-right'; }
+    let t = r.top + r.height/2 - 110;
+    t = Math.max(10, Math.min(VH-240, t));
+    cs = `left:${l}px;top:${t}px`;
+  } else {
+    cs = 'top:50%;left:50%;transform:translate(-50%,-50%)';
+  }
+  card.style.cssText = cs;
+}
+
+function renderTourStep(){
+  const step = TOUR_STEPS[tourStep];
+  document.getElementById('tour-step-tag').textContent = `STEP ${tourStep+1} OF ${TOUR_STEPS.length}`;
+  document.getElementById('tour-title').textContent = step.title;
+  document.getElementById('tour-body').innerHTML = step.body;
+  const btn = document.getElementById('tour-next-btn');
+  btn.textContent = tourStep === TOUR_STEPS.length-1 ? 'Finish ✓' : 'Next →';
+  buildTourDots();
+  // short delay lets DOM settle before measuring
+  requestAnimationFrame(()=>positionTourCard(step.target, step.arrow));
+}
+
+function startTour(){
+  tourStep = 0;
+  document.getElementById('tour-overlay').classList.add('active');
+  renderTourStep();
+}
+
+function tourNext(){
+  tourStep++;
+  if(tourStep >= TOUR_STEPS.length){ endTour(); return; }
+  renderTourStep();
+}
+
+function endTour(){
+  const ov = document.getElementById('tour-overlay');
+  const hl = document.getElementById('tour-highlight');
+  if(ov) ov.classList.remove('active');
+  if(hl) hl.classList.add('hidden');
+  localStorage.setItem(TOUR_KEY, '1');
+}
+
+// Auto-launch on first ever visit
+if(!localStorage.getItem(TOUR_KEY)){
+  setTimeout(startTour, 900);
+}
+</script>
+</body>
+</html>
