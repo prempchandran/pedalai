@@ -572,11 +572,25 @@ footer a:hover{color:var(--accent)}
     <button class="mode-tab" id="tab-ear" onclick="switchMode('ear')">👂 Ear Training</button>
   </div>
 
+  <!-- Free / AI Mode toggle -->
+  <div id="ai-mode-bar" style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--surface2);border-bottom:1px solid var(--border);gap:10px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span id="ai-mode-icon" style="font-size:16px">🎸</span>
+      <div>
+        <div style="font-family:var(--sans);font-size:12px;font-weight:700;color:var(--text)" id="ai-mode-label">Free Mode</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text2)" id="ai-mode-desc">Prebuilt pedals · No key needed</div>
+      </div>
+    </div>
+    <button onclick="toggleAiMode()" id="ai-mode-btn" style="font-family:var(--sans);font-size:11px;font-weight:700;padding:5px 12px;border-radius:20px;border:1.5px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;white-space:nowrap;transition:all .2s">
+      Unlock AI 🤖
+    </button>
+  </div>
+
   <!-- PEDALS PANEL (default) -->
   <div id="pedals-sidebar">
 
-  <!-- API Key -->
-  <div class="acc-wrap">
+  <!-- API Key (hidden in Free mode) -->
+  <div class="acc-wrap" id="api-section-wrap" style="display:none">
     <div class="acc-hdr" id="api-hdr" onclick="toggleApiPanel()" tabindex="0" role="button" aria-expanded="true">
       <div class="acc-title">
         <div class="s-dot" id="api-dot"></div>
@@ -621,15 +635,22 @@ footer a:hover{color:var(--accent)}
     <div class="pedal-grid" id="pedal-grid"></div>
   </div>
 
-  <!-- Custom Search -->
-  <div class="search-section">
+  <!-- Custom Search (hidden in Free mode) -->
+  <div class="search-section" id="ai-search-wrap" style="display:none">
     <span class="fld-lbl">Or search any pedal</span>
     <div class="fl">
       <input class="ti" id="pedal-input" placeholder="e.g. Boss DS-1, EHX Big Muff…" autocomplete="off" spellcheck="false"/>
       <button class="btn btn-p" id="load-btn" onclick="loadPedal()">Load</button>
     </div>
-    <div class="search-hint">Enter any brand + model to emulate it</div>
+    <div class="search-hint">Claude AI fetches real specs — requires API key</div>
     <div class="err-line" id="err-line" role="alert"></div>
+  </div>
+
+  <!-- Free mode CTA (shown instead of search in Free mode) -->
+  <div id="free-mode-cta" style="margin:12px 14px;padding:12px 14px;background:var(--accent-bg);border:1.5px solid var(--accent);border-radius:10px;text-align:center">
+    <div style="font-family:var(--sans);font-size:12px;font-weight:700;color:var(--accent);margin-bottom:4px">🤖 Want AI-powered pedals?</div>
+    <div style="font-family:var(--sans);font-size:11px;color:var(--text2);margin-bottom:8px">Search any pedal by name — Claude fetches real specs</div>
+    <button onclick="toggleAiMode()" style="font-family:var(--sans);font-size:11px;font-weight:700;padding:6px 16px;border-radius:20px;border:none;background:var(--accent);color:#06111F;cursor:pointer">Unlock AI Mode</button>
   </div>
 
   </div><!-- /pedals-sidebar -->
@@ -961,7 +982,13 @@ function initTheme(){ let s='dark'; try{s=localStorage.getItem('pedalai_theme')|
 ═══════════════════════════════════ */
 let apiKey = '';
 function loadSavedKey(){
-  try{const k=localStorage.getItem('pedalai_apikey')||'';if(k){apiKey=k;document.getElementById('api-input').value=k;setApiStatus('ok');collapseApi();}}catch(e){}
+  try{
+    const k=localStorage.getItem('pedalai_apikey')||'';
+    const savedMode=localStorage.getItem('pedalai_aimode');
+    if(k){apiKey=k;document.getElementById('api-input').value=k;setApiStatus('ok');collapseApi();aiModeOn=true;}
+    else if(savedMode==='1'){aiModeOn=true;}
+    applyAiMode();
+  }catch(e){applyAiMode();}
 }
 function saveKey(){
   const v=(document.getElementById('api-input').value||'').trim();
@@ -988,6 +1015,44 @@ function setApiStatus(s){
   else if(s==='err'){dot.classList.add('err');lbl.classList.add('err');lbl.textContent='invalid format';}
   else{lbl.textContent='not set';}
 }
+/* ── AI Mode toggle ── */
+let aiModeOn = false;
+function toggleAiMode(){
+  aiModeOn = !aiModeOn;
+  try{localStorage.setItem('pedalai_aimode', aiModeOn ? '1' : '0');}catch(e){}
+  applyAiMode();
+}
+function applyAiMode(){
+  const apiWrap = document.getElementById('api-section-wrap');
+  const searchWrap = document.getElementById('ai-search-wrap');
+  const freeCta = document.getElementById('free-mode-cta');
+  const btn = document.getElementById('ai-mode-btn');
+  const icon = document.getElementById('ai-mode-icon');
+  const label = document.getElementById('ai-mode-label');
+  const desc = document.getElementById('ai-mode-desc');
+  if(aiModeOn){
+    apiWrap.style.display = '';
+    searchWrap.style.display = '';
+    freeCta.style.display = 'none';
+    btn.textContent = '← Free Mode';
+    btn.style.borderColor = 'var(--text3)';
+    btn.style.color = 'var(--text2)';
+    icon.textContent = '🤖';
+    label.textContent = 'AI Mode';
+    desc.textContent = 'Search any pedal · API key required';
+  } else {
+    apiWrap.style.display = 'none';
+    searchWrap.style.display = 'none';
+    freeCta.style.display = '';
+    btn.textContent = 'Unlock AI 🤖';
+    btn.style.borderColor = 'var(--accent)';
+    btn.style.color = 'var(--accent)';
+    icon.textContent = '🎸';
+    label.textContent = 'Free Mode';
+    desc.textContent = 'Prebuilt pedals · No key needed';
+  }
+}
+
 function toggleApiPanel(){
   const b=document.getElementById('api-body'),c=document.getElementById('api-chev'),h=document.getElementById('api-hdr');
   const open=b.classList.contains('open');
