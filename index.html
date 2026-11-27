@@ -1154,6 +1154,47 @@ async function loadPedalDirect(hint){
   await loadPedalCore(hint.brand+' '+hint.name, hint);
 }
 
+/* ── Per-pedal character tuning: makes each pedal sound distinct ── */
+const PEDAL_CHAR = {
+  // Distortions
+  'boss ds-1':          {gain:72, tone:68, level:60, _char:'bright_hard'},    // bright, fizzy top
+  'proco rat2':         {gain:60, tone:35, level:65, _char:'dark_fat'},        // darker, fatter mid
+  'mxr distortion+':   {gain:55, tone:60, level:60, _char:'mid_crunch'},      // crunchy mid-focused
+  'boss mt-2 metal zone':{gain:85,tone:55, level:55, _char:'scooped_metal'},  // scooped high-gain
+  'wampler pinnacle':  {gain:70, tone:50, level:65, _char:'smooth_hi'},
+  'suhr riot':         {gain:65, tone:52, level:62, _char:'tight_hi'},
+  // Overdrives
+  'ibanez ts9 tube screamer':{drive:55,tone:55,level:60, _char:'mid_boost'},   // classic TS mid hump
+  'boss bd-2 blues driver': {drive:50,tone:60,level:60, _char:'gritty_bright'},
+  'fulltone ocd':           {drive:60,tone:48,level:62, _char:'dynamic_od'},
+  'klon centaur':           {drive:40,tone:52,level:65, _char:'transparent'},  // very clean/transparent
+  // Fuzz
+  'electro-harmonix big muff pi':{fuzz:80,volume:60,tone:40, _char:'sust_smooth'},
+  'dunlop fuzz face':            {fuzz:90,volume:65,tone:35, _char:'vintage_fuzz'},
+  'boss fz-5':                   {fuzz:75,volume:60,tone:50, _char:'modern_fuzz'},
+  'zvex fuzz factory':           {fuzz:95,volume:60,tone:30, _char:'extreme_fuzz'},
+};
+
+/* ── Per-pedal character applied inside buildEffectChain ── */
+function getPedalChar(p){
+  const key = `${p.brand} ${p.model}`.toLowerCase();
+  return PEDAL_CHAR[key] || null;
+}
+
+/* ── Artwork URLs for known pedals (CC-licensed / press images) ── */
+const PEDAL_ART = {
+  'boss ds-1':           'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Boss_DS-1_Distortion.jpg/320px-Boss_DS-1_Distortion.jpg',
+  'proco rat2':          'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/ProCo_RAT2.jpg/320px-ProCo_RAT2.jpg',
+  'electro-harmonix big muff pi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/EHX_Big_Muff_Pi.jpg/320px-EHX_Big_Muff_Pi.jpg',
+  'dunlop fuzz face':    'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Dallas_Arbiter_Fuzz_Face.jpg/320px-Dallas_Arbiter_Fuzz_Face.jpg',
+  'ibanez ts9 tube screamer': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Ibanez_TS9.jpg/320px-Ibanez_TS9.jpg',
+};
+
+function getPedalArtUrl(p){
+  const key = `${p.brand} ${p.model}`.toLowerCase();
+  return PEDAL_ART[key] || null;
+}
+
 function buildLocalPedal(hint){
   // knob names must match what buildEffectChain reads from kv:
   //   gPct = kv.gain ?? kv.drive ?? kv.fuzz ?? kv.sustain
@@ -1175,20 +1216,25 @@ function buildLocalPedal(hint){
     wah:        {knobs:['freq','level'],          params:{freq:50, level:60}},
     envelope:   {knobs:['sensitivity','level'],  params:{sensitivity:60, level:60}},
   };
+  // Apply per-pedal character tuning if available
+  const char = PEDAL_CHAR[`${hint.brand} ${hint.name}`.toLowerCase()];
   const d = defaults[hint.type] || defaults.distortion;
+  const params = char ? Object.assign({}, d.params, char) : d.params;
+
   const shape = hint.name.toLowerCase().includes('fuzz face') ? 'round'
               : (d.knobs.length >= 5) ? 'large' : 'tall';
   return {
     brand: hint.brand,
     model: hint.name,
     type:  hint.type,
+    _char: char?._char || hint.type,
     description: `${hint.brand} ${hint.name} — classic ${hint.type} pedal. Switch to AI Mode to fetch real specs from Claude.`,
     color: hint.color,
     bodyColor: hint.bodyColor,
     textColor: '#FFFFFF',
     shape,
     knobs: d.knobs,
-    params: d.params,
+    params,
   };
 }
 async function loadPedal(){
@@ -1284,8 +1330,44 @@ function renderPedal(p){
   document.getElementById('p-desc').textContent=p.description||'';
   document.getElementById('sc-effect').textContent=p.type||'—';
 
+  // Artwork: show real photo if available, with animated fade-in
+  renderPedalArtwork(p);
   renderPedalSVG(p);
   resizeCanvas();
+}
+
+function renderPedalArtwork(p){
+  // Look for or create artwork panel above the SVG
+  let artWrap = document.getElementById('pedal-artwork-wrap');
+  if(!artWrap){
+    artWrap = document.createElement('div');
+    artWrap.id = 'pedal-artwork-wrap';
+    artWrap.style.cssText='display:none;align-items:center;justify-content:center;gap:14px;padding:10px 16px 0;';
+    const svgWrap = document.getElementById('pedal-svg-wrap');
+    if(svgWrap && svgWrap.parentNode) svgWrap.parentNode.insertBefore(artWrap, svgWrap);
+  }
+
+  const artUrl = getPedalArtUrl(p);
+  if(artUrl){
+    artWrap.style.display = 'flex';
+    artWrap.innerHTML = `
+      <div style="position:relative;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.5);border:1.5px solid var(--border2);max-width:160px;background:var(--surface2);">
+        <img src="${artUrl}"
+             alt="${p.brand} ${p.model}"
+             style="display:block;width:160px;max-height:160px;object-fit:contain;opacity:0;transition:opacity 0.4s ease;"
+             onload="this.style.opacity='1'"
+             onerror="this.closest('#pedal-artwork-wrap').style.display='none'"/>
+        <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.7));padding:4px 8px;font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.6);text-align:center;">photo</div>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);text-align:center;line-height:1.6;">
+        <div style="color:var(--text2);font-size:13px;font-weight:600;">${p.brand}</div>
+        <div style="color:var(--accent);font-size:16px;font-weight:700;letter-spacing:.02em;">${p.model}</div>
+        <div style="margin-top:4px;padding:2px 8px;background:var(--surface3);border-radius:4px;display:inline-block;text-transform:uppercase;letter-spacing:.08em;font-size:9px;color:var(--text3);">${p.type}</div>
+      </div>`;
+  } else {
+    artWrap.style.display = 'none';
+    artWrap.innerHTML = '';
+  }
 }
 
 /* ═══════════════════════════════════
@@ -1798,50 +1880,95 @@ function buildEffectChain(p, kv){
   const tPct=(kv.tone??50)/100;
   const wPct=(kv.mix??kv.level??kv.volume??60)/100;
   const type=(p.type||'').toLowerCase();
+  const char=(p._char||type); // per-pedal sound character
+
   switch(type){
     case'distortion':{
-      // Hard-clipping distortion — bright, aggressive
-      const preGain=audioCtx.createGain(); preGain.gain.value=1+gPct*6;
-      nodes.push(preGain);
+      // Character variants: bright_hard (DS-1), dark_fat (RAT2), scooped_metal (MT-2)
+      let preAmt, wsAmt, toneFreq, toneGain, hpFreq=80, presence=0;
+      if(char==='bright_hard'){        // DS-1: fizzy, bright, aggressive
+        preAmt=1+gPct*7; wsAmt=gPct*500+80;
+        toneFreq=1200+tPct*4000; toneGain=(tPct-0.4)*20; presence=3;
+      } else if(char==='dark_fat'){    // RAT2: darker, fat mids, Op-amp crunch
+        preAmt=1+gPct*5; wsAmt=gPct*350+40;
+        toneFreq=400+tPct*1800; toneGain=(tPct-0.6)*16; hpFreq=60; presence=-2;
+      } else if(char==='scooped_metal'){// MT-2: scooped, high-gain, tight
+        preAmt=1+gPct*9; wsAmt=gPct*700+100;
+        toneFreq=800+tPct*2500; toneGain=(tPct-0.5)*12; hpFreq=120;
+      } else if(char==='mid_crunch'){  // MXR D+: punchy mid crunch
+        preAmt=1+gPct*5; wsAmt=gPct*300+50;
+        toneFreq=700+tPct*2800; toneGain=(tPct-0.5)*15;
+      } else {                          // generic distortion
+        preAmt=1+gPct*6; wsAmt=gPct*500+60;
+        toneFreq=600+tPct*3400; toneGain=(tPct-0.5)*18;
+      }
+      const preGain=audioCtx.createGain(); preGain.gain.value=preAmt; nodes.push(preGain);
       const ws=audioCtx.createWaveShaper();
-      const amt=gPct*500+60, curve=new Float32Array(1024);
-      for(let i=0;i<1024;i++){const x=(i*2)/1024-1; curve[i]=(Math.PI+amt)*x/(Math.PI+amt*Math.abs(x));}
+      const curve=new Float32Array(1024);
+      for(let i=0;i<1024;i++){const x=(i*2)/1024-1; curve[i]=(Math.PI+wsAmt)*x/(Math.PI+wsAmt*Math.abs(x));}
       ws.curve=curve; ws.oversample='4x'; nodes.push(ws);
       const tone=audioCtx.createBiquadFilter();
-      tone.type='peaking'; tone.frequency.value=600+tPct*3400; tone.gain.value=(tPct-0.5)*18; tone.Q.value=0.8;
+      tone.type='peaking'; tone.frequency.value=toneFreq; tone.gain.value=toneGain; tone.Q.value=0.8;
       nodes.push(tone);
-      // Cut mud below 80Hz
-      const hp=audioCtx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=80; nodes.push(hp);
+      if(presence!==0){const pf=audioCtx.createBiquadFilter();pf.type='highshelf';pf.frequency.value=4000;pf.gain.value=presence;nodes.push(pf);}
+      const hp=audioCtx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=hpFreq; nodes.push(hp);
       break;
     }
     case'overdrive':{
-      // Soft-clipping tube-style overdrive — warm, asymmetric
-      const preGain=audioCtx.createGain(); preGain.gain.value=1+gPct*4; nodes.push(preGain);
+      // Character variants: mid_boost (TS9), gritty_bright (BD-2), transparent (Klon)
+      let preAmt, asymFactor, toneFreq, toneGain;
+      if(char==='mid_boost'){           // TS9: classic mid hump 700-1kHz
+        preAmt=1+gPct*3.5; asymFactor=1.2;
+        toneFreq=720+tPct*1800; toneGain=4+(tPct-0.5)*12;
+        // Add fixed 720Hz mid boost — the TS signature
+        const midBoost=audioCtx.createBiquadFilter();
+        midBoost.type='peaking'; midBoost.frequency.value=720; midBoost.gain.value=4; midBoost.Q.value=1.2;
+        nodes.push(midBoost);
+      } else if(char==='transparent'){  // Klon: clean, touch-sensitive
+        preAmt=1+gPct*2; asymFactor=0.9;
+        toneFreq=1200+tPct*2000; toneGain=(tPct-0.5)*8;
+      } else if(char==='gritty_bright'){// BD-2: open, slightly gritty
+        preAmt=1+gPct*4.5; asymFactor=1.4;
+        toneFreq=1000+tPct*3000; toneGain=(tPct-0.4)*16;
+      } else {
+        preAmt=1+gPct*4; asymFactor=1.3;
+        toneFreq=800+tPct*2400; toneGain=(tPct-0.5)*14;
+      }
+      const preGain=audioCtx.createGain(); preGain.gain.value=preAmt; nodes.push(preGain);
       const ws=audioCtx.createWaveShaper();
       const amt=gPct*180+20, curve=new Float32Array(1024);
       for(let i=0;i<1024;i++){
         const x=(i*2)/1024-1;
-        // asymmetric: positive half soft, negative harder (tube asymmetry)
-        curve[i] = x>=0 ? Math.tanh(x*(1+amt/40)) : (Math.PI+amt)*x/(Math.PI+amt*Math.abs(x)*1.3);
+        curve[i] = x>=0 ? Math.tanh(x*(1+amt/40)) : (Math.PI+amt)*x/(Math.PI+amt*Math.abs(x)*asymFactor);
       }
       ws.curve=curve; ws.oversample='2x'; nodes.push(ws);
       const tone=audioCtx.createBiquadFilter();
-      tone.type='peaking'; tone.frequency.value=800+tPct*2400; tone.gain.value=(tPct-0.5)*14;
+      tone.type='peaking'; tone.frequency.value=toneFreq; tone.gain.value=toneGain;
       nodes.push(tone); break;
     }
     case'fuzz':{
-      // Full-wave rectification style fuzz — extreme, octave-up character
-      const preGain=audioCtx.createGain(); preGain.gain.value=2+gPct*8; nodes.push(preGain);
+      // Character variants: sust_smooth (Big Muff), vintage_fuzz (Fuzz Face), extreme_fuzz (Fuzz Factory)
+      let preAmt, wsAmt, lpFreq, octaveUp=false;
+      if(char==='sust_smooth'){         // Big Muff: massive sustain, smooth
+        preAmt=3+gPct*7; wsAmt=gPct*400+80; lpFreq=3500-tPct*2000;
+      } else if(char==='vintage_fuzz'){ // Fuzz Face: vintage germanium warmth
+        preAmt=2+gPct*6; wsAmt=gPct*350+60; lpFreq=4000-tPct*2800;
+        // Soft-knee for vintage feel
+      } else if(char==='extreme_fuzz'){ // Fuzz Factory: gated, extreme
+        preAmt=4+gPct*10; wsAmt=gPct*800+200; lpFreq=2500-tPct*1500;
+      } else {
+        preAmt=2+gPct*8; wsAmt=gPct*600+100; lpFreq=3000-tPct*2200;
+      }
+      const preGain=audioCtx.createGain(); preGain.gain.value=preAmt; nodes.push(preGain);
       const ws=audioCtx.createWaveShaper();
-      const amt=gPct*600+100, curve=new Float32Array(1024);
+      const curve=new Float32Array(1024);
       for(let i=0;i<1024;i++){
         const x=(i*2)/1024-1;
-        curve[i]=Math.sign(x)*(1-Math.exp(-Math.abs(x)*amt/50));
+        curve[i]=Math.sign(x)*(1-Math.exp(-Math.abs(x)*wsAmt/50));
       }
       ws.curve=curve; ws.oversample='4x'; nodes.push(ws);
-      // Fuzz needs a tone stack with high-end rolloff
       const tone=audioCtx.createBiquadFilter();
-      tone.type='lowpass'; tone.frequency.value=3000-tPct*2200; nodes.push(tone); break;
+      tone.type='lowpass'; tone.frequency.value=lpFreq; nodes.push(tone); break;
     }
     case'reverb':{
       // Schroeder reverb: 4 comb filters + 2 allpass diffusers
